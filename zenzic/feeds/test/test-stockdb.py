@@ -9,7 +9,9 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 import argparse
 import backtrader as bt
-from zenzic.backtrader.feeds import StockDB
+from zenzic.feeds import StockDB
+import matplotlib
+import pandas as pd
 
 def runstrat():
     args = parse_args()
@@ -23,14 +25,17 @@ def runstrat():
     # Pass it to the backtrader datafeed and add it to the cerebro
     db = StockDB()
 
-    cerebro.adddata(db.getQuotes('GOOG'))
+    cerebro.adddata(db.getQuotes('GOOG', fromdate=pd.to_datetime('2019-01-01')))
 
     # Run over everything
     cerebro.run()
 
+    matplotlib.use('Qt5Agg')
+
     # Plot the result
-    cerebro.plot(style='bar', iplot=False, use='Qt5Agg')
-    print("Execution is complete!")
+    cerebro.plot(style='bar', iplot=False)
+
+    print(matplotlib.get_backend())
 
 
 def parse_args():

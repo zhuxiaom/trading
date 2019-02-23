@@ -15,7 +15,7 @@ class StockDB(object):
     def __init__(self):
         self.__conn = po.connect('DSN=stocks_db')
 
-    def getQuotes(self, symbol, adjclose=True):
+    def getQuotes(self, symbol, fromdate=None, todate=None, adjclose=True):
         cursor = self.__conn.cursor()
         dates = []
         opens = []
@@ -39,4 +39,4 @@ class StockDB(object):
 
         quotes = pd.DataFrame(zip(dates, opens, highs, lows, closes, volumes))
         quotes = quotes.set_index(0)
-        return PandasDirectData(dataname=quotes, openinterest=-1)
+        return PandasDirectData(dataname=quotes, fromdate=fromdate, todate=todate, openinterest=-1)
