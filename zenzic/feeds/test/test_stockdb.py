@@ -14,10 +14,10 @@ import matplotlib
 import pandas as pd
 
 def runstrat():
-    args = parse_args()
+    args = parse_args()  # pylint: disable=unused-variable
 
     # Create a cerebro entity
-    cerebro = bt.Cerebro(stdstats=False)
+    cerebro = bt.Cerebro(stdstats=False)     # pylint: disable=unexpected-keyword-arg
 
     # Add a strategy
     cerebro.addstrategy(bt.Strategy)
