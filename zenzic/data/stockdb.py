@@ -23,7 +23,7 @@ class StockDB(object):
         lows = []
         closes = []
         volumes = []
-        cursor.execute("""SELECT * FROM quotes WHERE sym_id = (SELECT sym_id FROM symbols WHERE symbol = ?) ORDER BY q_date""", (symbol,))
+        cursor.execute("""SELECT * FROM quotes WHERE sym_id = (SELECT sym_id FROM symbols WHERE symbol = ?) ORDER BY q_date""", (symbol))
         for row in cursor.fetchall():
 #            dt = pd.Timestamp(row[1].year, row[1].month, row[1].day)
             dates.append(pd.to_datetime(row[1]))
@@ -40,3 +40,22 @@ class StockDB(object):
         quotes = pd.DataFrame(zip(dates, opens, highs, lows, closes, volumes))
         quotes = quotes.set_index(0)
         return PandasDirectData(dataname=quotes, fromdate=fromdate, todate=todate, openinterest=-1)
+
+    def updateEtfDb(self, symbol, info, verbose=True):
+        cursor = self.__conn.cursor()
+        cursor.execute("""SELECT sym_id FROM symbols WHERE symbol = ?""", (symbol))
+        sym_id = cursor.fetchval()
+        if sym_id:
+            cursor.execute("""UPDATE symbols SET company_name = ? WHERE sym_id = ?""", (info['name'], sym_id))
+            cursor.execute("""SELECT COUNT(*) FROM etf_info WHERE sym_id = ?""", (sym_id))
+            if not cursor.fetchval():
+                if verbose:
+                    print('Insert ETF information of %s.' % (symbol))
+                cursor.execute("""INSERT INTO etf_info VALUES(?, ?)""", (sym_id, info['category']))
+            else:
+                if verbose:
+                    print('Update ETF information of %s.' % (symbol))
+                cursor.execute("""UPDATE etf_info SET etf_db_category = ? WHERE sym_id = ?""", (info['category'], sym_id))
+            cursor.commit()
+        else:
+            print('Invalid symbol %s.' % (symbol))

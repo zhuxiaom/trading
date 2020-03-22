@@ -3,7 +3,7 @@ from __future__ import (absolute_import, division, print_function,
 import argparse
 import backtrader as bt
 from backtrader.indicators import WeightedMovingAverage
-from zenzic.feeds import StockDB
+from zenzic.data import StockDB
 from zenzic.indicators import LgFilter
 import matplotlib
 import pandas as pd
