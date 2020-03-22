@@ -9,6 +9,7 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 import pyodbc as po
 import pandas as pd
+import json
 from backtrader.feeds import PandasDirectData
 
 class StockDB(object):
@@ -51,11 +52,11 @@ class StockDB(object):
             if not cursor.fetchval():
                 if verbose:
                     print('Insert ETF information of %s.' % (symbol))
-                cursor.execute("""INSERT INTO etf_info VALUES(?, ?)""", (sym_id, info['category']))
+                cursor.execute("""INSERT INTO etf_info VALUES(?, ?)""", (sym_id, json.dumps(info)))
             else:
                 if verbose:
                     print('Update ETF information of %s.' % (symbol))
-                cursor.execute("""UPDATE etf_info SET etf_db_category = ? WHERE sym_id = ?""", (info['category'], sym_id))
+                cursor.execute("""UPDATE etf_info SET etfdb_info = ? WHERE sym_id = ?""", (json.dumps(info), sym_id))
             cursor.commit()
         else:
             print('Invalid symbol %s.' % (symbol))
