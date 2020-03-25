@@ -11,6 +11,7 @@ import pyodbc as po
 import pandas as pd
 import json
 from backtrader.feeds import PandasDirectData
+from datetime import date
 
 class StockDB(object):
     def __init__(self):
@@ -42,21 +43,13 @@ class StockDB(object):
         quotes = quotes.set_index(0)
         return PandasDirectData(dataname=quotes, fromdate=fromdate, todate=todate, openinterest=-1)
 
-    def updateEtfDb(self, symbol, info, verbose=True):
+    def updateEtfDb(self, symbol, info):
         cursor = self.__conn.cursor()
         cursor.execute("""SELECT sym_id FROM symbols WHERE symbol = ?""", (symbol))
         sym_id = cursor.fetchval()
         if sym_id:
             cursor.execute("""UPDATE symbols SET company_name = ? WHERE sym_id = ?""", (info['name'], sym_id))
-            cursor.execute("""SELECT COUNT(*) FROM etf_info WHERE sym_id = ?""", (sym_id))
-            if not cursor.fetchval():
-                if verbose:
-                    print('Insert ETF information of %s.' % (symbol))
-                cursor.execute("""INSERT INTO etf_info VALUES(?, ?)""", (sym_id, json.dumps(info)))
-            else:
-                if verbose:
-                    print('Update ETF information of %s.' % (symbol))
-                cursor.execute("""UPDATE etf_info SET etfdb_info = ? WHERE sym_id = ?""", (json.dumps(info), sym_id))
+            cursor.execute("""INSERT INTO etf_info VALUES(?, ?, ?)""", (sym_id, date.today(), json.dumps(info)))
             cursor.commit()
         else:
             print('Invalid symbol %s.' % (symbol))

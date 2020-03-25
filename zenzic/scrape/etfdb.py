@@ -44,5 +44,5 @@ if __name__ == "__main__":
     etf_db = EtfDb()
     symbols = etf_db.fetch_etf_symbols()
     for sym in symbols.keys():
-        stock_db.updateEtfDb(sym, symbols[sym], True)
+        stock_db.updateEtfDb(sym, symbols[sym])
     del etf_db
