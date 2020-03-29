@@ -5,6 +5,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import NoSuchElementException
+from selenium.common.exceptions import TimeoutException
 from zenzic.data.stockdb import StockDB
 
 class EtfDb:
@@ -30,10 +31,16 @@ class EtfDb:
                     self.__chrome.find_element_by_css_selector('.page-next.disabled')
                     break
                 except NoSuchElementException:
-                    next_btn = self.__chrome.find_element_by_css_selector('.page-next a:first-child')
-                    ActionChains(self.__chrome).move_to_element(next_btn).click().perform()
-                    for row in rows:
-                        WebDriverWait(self.__chrome, 10).until(EC.staleness_of(row))
+                    while True:
+                        next_btn = self.__chrome.find_element_by_css_selector('.page-next a:first-child')
+                        ActionChains(self.__chrome).move_to_element(next_btn).click().perform()
+                        try:
+                            for row in rows:
+                                WebDriverWait(self.__chrome, 10).until(EC.staleness_of(row))
+                            break
+                        except TimeoutException:
+                            print('Retry next page ...')
+
         return self.__sym_info
 
     def fetch_etf_profile(self, symbol):
