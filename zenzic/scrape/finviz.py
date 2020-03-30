@@ -26,9 +26,17 @@ class FinViz:
                 if ticker.text == symbol:
                     break
             
+            rows = self.__chrome.find_elements_by_css_selector('.fullview-title .fullview-links .tab-link')
+            assert len(rows) == 3
+            stock_info["Sector"] = rows[0].text.strip()
+            stock_info["Industry"] = rows[1].text.strip()
+            stock_info["Country"] = rows[2].text.strip()
+            
             rows =  self.__chrome.find_elements_by_css_selector('.snapshot-table2 tbody tr')
+            assert len(rows) == 12
             for row in rows:
                 cols = row.find_elements_by_css_selector('td')
+                assert len(cols) == 12
                 idx = 0
                 for col in cols:
                     idx += 1
@@ -43,9 +51,13 @@ if __name__ == "__main__":
     finviz = FinViz()
     stock_db = StockDB()
     symbols = stock_db.getStockSymbols()
+    total = len(symbols)
+    cnt = 0
     for symbol in symbols:
+        cnt += 1
         stock_info = finviz.getStockInfo(symbol)
         if stock_info:
+            print("Updating %s information. %d more symbols to be updated." % (symbol, total - cnt))
             stock_db.updateStockInfo(symbol, stock_info)
     del finviz
 
