@@ -16,6 +16,7 @@ from datetime import date
 class StockDB(object):
     def __init__(self):
         self.__conn = po.connect('DSN=stocks_db')
+        self.__today = date.today()
 
     def getQuotes(self, symbol, fromdate=None, todate=None, adjclose=True):
         cursor = self.__conn.cursor()
@@ -49,7 +50,7 @@ class StockDB(object):
         cursor = self.__conn.cursor()
         cursor.execute("""SELECT s.symbol, MAX(i.u_date) FROM symbols s JOIN stock_info i USING(sym_id) GROUP BY symbol""")
         for row in cursor.fetchall():
-            if row[1] == date.today():
+            if row[1] == self.__today:
                 already_updated[row[0]] = row[1]
         cursor.execute("""SELECT s.symbol FROM symbols s LEFT JOIN etf_info e USING(sym_id) WHERE s.yhoo_sync AND e.u_date IS NULL AND s.symbol NOT LIKE '^%' ORDER BY symbol""")
         for row in cursor.fetchall():
@@ -63,7 +64,7 @@ class StockDB(object):
         sym_id = cursor.fetchval()
         if sym_id:
             cursor.execute("""UPDATE symbols SET company_name = ? WHERE sym_id = ?""", (info['name'], sym_id))
-            cursor.execute("""INSERT INTO etf_info VALUES(?, ?, ?)""", (sym_id, date.today(), json.dumps(info)))
+            cursor.execute("""INSERT INTO etf_info VALUES(?, ?, ?)""", (sym_id, self.__today, json.dumps(info)))
             cursor.commit()
         else:
             print('Invalid symbol %s.' % (symbol))
@@ -73,7 +74,7 @@ class StockDB(object):
         cursor.execute("""SELECT sym_id FROM symbols WHERE symbol = ?""", (symbol))
         sym_id = cursor.fetchval()
         if sym_id:
-            cursor.execute("""INSERT INTO stock_info VALUES(?, ?, ?)""", (sym_id, date.today(), json.dumps(info)))
+            cursor.execute("""INSERT INTO stock_info VALUES(?, ?, ?)""", (sym_id, self.__today, json.dumps(info)))
             cursor.commit()
         else:
             print('Invalid symbol %s.' % (symbol))
