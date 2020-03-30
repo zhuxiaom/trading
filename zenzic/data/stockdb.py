@@ -45,10 +45,16 @@ class StockDB(object):
 
     def getStockSymbols(self):
         symbols = []
+        already_updated = {}
         cursor = self.__conn.cursor()
-        cursor.execute("SELECT s.symbol FROM symbols s LEFT JOIN etf_info e USING(sym_id) WHERE s.yhoo_sync AND e.u_date IS NULL AND s.symbol NOT LIKE '^%'")
+        cursor.execute("""SELECT s.symbol, MAX(i.u_date) FROM symbols s JOIN stock_info i USING(sym_id) GROUP BY symbol""")
         for row in cursor.fetchall():
-            symbols.append(row[0])
+            if row[1] == date.today():
+                already_updated[row[0]] = row[1]
+        cursor.execute("""SELECT s.symbol FROM symbols s LEFT JOIN etf_info e USING(sym_id) WHERE s.yhoo_sync AND e.u_date IS NULL AND s.symbol NOT LIKE '^%' ORDER BY symbol""")
+        for row in cursor.fetchall():
+            if not already_updated.get(row[0], None):
+                symbols.append(row[0])
         return symbols
 
     def updateEtfDb(self, symbol, info):
