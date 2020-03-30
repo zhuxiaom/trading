@@ -43,6 +43,14 @@ class StockDB(object):
         quotes = quotes.set_index(0)
         return PandasDirectData(dataname=quotes, fromdate=fromdate, todate=todate, openinterest=-1)
 
+    def getStockSymbols(self):
+        symbols = []
+        cursor = self.__conn.cursor()
+        cursor.execute("SELECT s.symbol FROM symbols s LEFT JOIN etf_info e USING(sym_id) WHERE s.yhoo_sync AND e.u_date IS NULL AND s.symbol NOT LIKE '^%'")
+        for row in cursor.fetchall():
+            symbols.append(row[0])
+        return symbols
+
     def updateEtfDb(self, symbol, info):
         cursor = self.__conn.cursor()
         cursor.execute("""SELECT sym_id FROM symbols WHERE symbol = ?""", (symbol))
@@ -50,6 +58,16 @@ class StockDB(object):
         if sym_id:
             cursor.execute("""UPDATE symbols SET company_name = ? WHERE sym_id = ?""", (info['name'], sym_id))
             cursor.execute("""INSERT INTO etf_info VALUES(?, ?, ?)""", (sym_id, date.today(), json.dumps(info)))
+            cursor.commit()
+        else:
+            print('Invalid symbol %s.' % (symbol))
+
+    def updateStockInfo(self, symbol, info):
+        cursor = self.__conn.cursor()
+        cursor.execute("""SELECT sym_id FROM symbols WHERE symbol = ?""", (symbol))
+        sym_id = cursor.fetchval()
+        if sym_id:
+            cursor.execute("""INSERT INTO stock_info VALUES(?, ?, ?)""", (sym_id, date.today(), json.dumps(info)))
             cursor.commit()
         else:
             print('Invalid symbol %s.' % (symbol))

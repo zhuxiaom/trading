@@ -13,7 +13,7 @@ class EtfDb:
         self.__chrome = webdriver.Chrome()
         self.__sym_info = {}
 
-    def fetch_etf_symbols(self):
+    def fetchEtfSymbols(self):
         for ch in range(65, 91):
             url = 'https://etfdb.com/alpha/' + chr(ch) + '/'
             self.__chrome.get(url)
@@ -43,13 +43,13 @@ class EtfDb:
 
         return self.__sym_info
 
-    def fetch_etf_profile(self, symbol):
+    def fetchEtfProfile(self, symbol):
         pass
 
 if __name__ == "__main__":
     stock_db = StockDB()
     etf_db = EtfDb()
-    symbols = etf_db.fetch_etf_symbols()
+    symbols = etf_db.fetchEtfSymbols()
     for sym in symbols.keys():
         stock_db.updateEtfDb(sym, symbols[sym])
     del etf_db
