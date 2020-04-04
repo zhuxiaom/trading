@@ -57,8 +57,7 @@ if __name__ == "__main__":
     for symbol in symbols:
         cnt += 1
         stock_info = finviz.getStockInfo(symbol)
-        if stock_info:
-            print("Updating %s information. %d more symbols to be updated." % (symbol, total - cnt))
-            stock_db.updateStockInfo(symbol, stock_info)
+        print("Updating %s information. %d more symbols to be updated." % (symbol, total - cnt))
+        stock_db.updateStockInfo(symbol, stock_info)
     del finviz
 
