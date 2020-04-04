@@ -3,6 +3,7 @@ import os
 from selenium import webdriver
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.common.exceptions import NoSuchElementException
+from selenium.common.exceptions import TimeoutException
 from zenzic.data.stockdb import StockDB
 from pathlib import Path
 
@@ -45,7 +46,7 @@ class FinViz:
             
             return stock_info
         except NoSuchElementException:
-            return None
+            return {}
 
 if __name__ == "__main__":
     finviz = FinViz()
