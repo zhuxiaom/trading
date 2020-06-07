@@ -45,6 +45,9 @@ class FinViz:
                         stock_info[cols[idx - 2].text.strip()] = col.text.strip()
             
             return stock_info
+        except TimeoutException:
+            print("Retry symbol '%s'." % (symbol))
+            return self.getStockInfo(symbol)
         except NoSuchElementException:
             return {}
 
