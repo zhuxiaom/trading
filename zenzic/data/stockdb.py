@@ -63,7 +63,7 @@ class StockDB(object):
         cursor.execute("""SELECT sym_id FROM symbols WHERE symbol = ?""", (symbol))
         sym_id = cursor.fetchval()
         if sym_id:
-            cursor.execute("""UPDATE symbols SET company_name = ? WHERE sym_id = ?""", (info['name'], sym_id))
+            # cursor.execute("""UPDATE symbols SET company_name = ? WHERE sym_id = ?""", (info['name'], sym_id))
             cursor.execute("""INSERT INTO etf_info VALUES(?, ?, ?)""", (sym_id, self.__today, json.dumps(info)))
             cursor.commit()
         else:
@@ -74,7 +74,10 @@ class StockDB(object):
         cursor.execute("""SELECT sym_id FROM symbols WHERE symbol = ?""", (symbol))
         sym_id = cursor.fetchval()
         if sym_id:
-            cursor.execute("""INSERT INTO stock_info VALUES(?, ?, ?)""", (sym_id, self.__today, json.dumps(info)))
+            if len(info) > 0:
+                cursor.execute("""INSERT INTO stock_info VALUES(?, ?, ?)""", (sym_id, self.__today, json.dumps(info)))
+            else:
+                cursor.execute("""UPDATE symbols SET yhoo_sync = 0 WHERE symbol = ?""", (symbol))
             cursor.commit()
         else:
             print('Invalid symbol %s.' % (symbol))

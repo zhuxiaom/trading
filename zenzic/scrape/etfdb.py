@@ -12,7 +12,7 @@ from pathlib import Path
 
 class EtfDb:
     def __init__(self):
-        ublock_path = os.path.join(os.path.dirname(Path(__file__).absolute()), 'chrome-extension', 'uBlock-Origin_v1.24.4.crx')
+        ublock_path = os.path.join(os.path.dirname(Path(__file__).absolute()), 'chrome-extension', 'uBlock-Origin.crx')
         chrome_options = webdriver.ChromeOptions()
         prefs = {"profile.managed_default_content_settings.images": 2}
         chrome_options.add_experimental_option("prefs", prefs)
