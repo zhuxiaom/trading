@@ -1,4 +1,5 @@
 import os
+import time
 
 from selenium import webdriver
 from selenium.webdriver.common.action_chains import ActionChains
@@ -27,16 +28,16 @@ class FinViz:
                     break
             
             rows = self.__chrome.find_elements_by_css_selector('.fullview-title .fullview-links .tab-link')
-            assert len(rows) == 3
+            assert (len(rows) == 3), "Only got %s" % (len(rows))
             stock_info["Sector"] = rows[0].text.strip()
             stock_info["Industry"] = rows[1].text.strip()
             stock_info["Country"] = rows[2].text.strip()
             
-            rows =  self.__chrome.find_elements_by_css_selector('.snapshot-table2 tbody tr')
-            assert len(rows) == 12
+            rows =  self.__chrome.find_elements_by_css_selector('[class=\'snapshot-table2\'] .table-dark-row')
+            assert (len(rows) == 12), "Only got %s" % (len(rows))
             for row in rows:
                 cols = row.find_elements_by_css_selector('td')
-                assert len(cols) == 12
+                assert (len(cols) == 12), "Only got %s" % (len(cols))
                 idx = 0
                 for col in cols:
                     idx += 1
@@ -59,7 +60,7 @@ if __name__ == "__main__":
     for symbol in symbols:
         cnt += 1
         stock_info = finviz.getStockInfo(symbol)
-        print("Updating %s information. %d more symbols to be updated." % (symbol, total - cnt))
+        print("Updating %s information with %d keys. %d more symbols to be updated." % (symbol, len(stock_info), total - cnt))
         stock_db.updateStockInfo(symbol, stock_info)
     del finviz
 
