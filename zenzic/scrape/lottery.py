@@ -56,7 +56,7 @@ class Lottery:
                     assert len(draw_date) == 1
                     draw_date = datetime.datetime.strptime(draw_date[0].text, r'%A %B %d, %Y')
                     pick_5 = self.__find_elements(row, 'li[class=\'{}\']'.format(LOTTERIES[name]['pick_5_class']))
-                    if name == 'california/superlotto-plus:':
+                    if name == 'california/superlotto-plus':
                         # CA SupperLott Plus doesn't have Mega ball before 06/03/2000.
                         break
                     else:
