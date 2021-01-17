@@ -15,6 +15,11 @@ LOTTERIES = {
         'short-name': 'PB',
         'pick_5_class': 'ball',
         'pick_1_class': 'powerball'
+    },
+    'california/superlotto-plus': {
+        'short-name': 'CA/SLP',
+        'pick_5_class': 'ball',
+        'pick_1_class': 'mega-ball'
     }
 }
 
@@ -51,7 +56,11 @@ class Lottery:
                     assert len(draw_date) == 1
                     draw_date = datetime.datetime.strptime(draw_date[0].text, r'%A %B %d, %Y')
                     pick_5 = self.__find_elements(row, 'li[class=\'{}\']'.format(LOTTERIES[name]['pick_5_class']))
-                    assert len(pick_5) == 5
+                    if name == 'california/superlotto-plus:':
+                        # CA SupperLott Plus doesn't have Mega ball before 06/03/2000.
+                        break
+                    else:
+                        assert len(pick_5) == 5
                     pick_5 = ','.join([n.text for n in pick_5])
                     pick_1 = self.__find_elements(row, 'li[class=\'{}\']'.format(LOTTERIES[name]['pick_1_class']))
                     assert len(pick_1) == 1
@@ -67,7 +76,7 @@ class Lottery:
                     break
             else:
                 # Couldn't find any draw results.
-                if sync_all and (count > 0 or year < 1990):
+                if sync_all and (count > 0 or year < 1980):
                     break
 
 if __name__ == "__main__":
