@@ -84,10 +84,10 @@ class StockDB(object):
     def updateEtfDb(self, symbol, info):
         cursor = self.__conn.cursor()
         cursor.execute("""SELECT sym_id FROM symbols WHERE symbol = %s""", (symbol))
-        sym_id = cursor.fetchone()[0]
+        sym_id = cursor.fetchone()
         if sym_id:
             # cursor.execute("""UPDATE symbols SET company_name = %s WHERE sym_id = %d""", (info['name'], sym_id))
-            cursor.execute("""INSERT INTO etf_info VALUES(%s, %s, %s)""", (sym_id, self.__today, json.dumps(info)))
+            cursor.execute("""INSERT INTO etf_info VALUES(%s, %s, %s)""", (sym_id[0], self.__today, json.dumps(info)))
             self.__conn.commit()
         else:
             print('Invalid symbol %s.' % (symbol))
