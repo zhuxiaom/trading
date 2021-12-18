@@ -42,7 +42,12 @@ def syncQuotes(symbols, period="1mo", database=StockDB(), proxy=None):
         yahoo_only = yahoo.index.difference(db.index)
         db_only = db.index.difference(yahoo.index)
         common = yahoo.index.intersection(db.index)
-        diff = yahoo.loc[common].compare(db.loc[common]).index
+        try:
+            diff = yahoo.loc[common].compare(db.loc[common]).index
+        except ValueError as e:
+            print("%s: Failed to compare data with the error '%s'." % (sym, e))
+            if period != "max":
+                max_lst.append(sym)
         precision = 2
         precision = yahoo[["Open", "High", "Low", "Close", "Adj Close"]].applymap(lambda x: ("%.6f" % (x)).rstrip("0")[::-1].find(".")).max().max()
         db = db.round(decimals=precision)
