@@ -89,17 +89,22 @@ def main(argv):
     symbols = stock_db.getStockSymbols(type="yahoo")
     # symbols = ["AZBA",] # "MLPR", "FLGV", "CEFA", "PFFV", "IBTK", "DJUL", "FJUL", "VWID", "KESG", "AUGZ"]
     # FLAGS.period = "max"
-    half = int(len(symbols) / 2)
+    one_third = len(symbols) // 3
+    two_third = len(symbols) * 2 // 3
     try:
         start = symbols.index(FLAGS.start) if FLAGS.start else 0
     except:
         start = 0
     if FLAGS.shard == 0:
-        symbols = symbols[start:half] if start < half else symbols[0:half]
+        symbols = symbols[start:one_third] if start < one_third else symbols[0:one_third]
         start = 0
     elif FLAGS.shard == 1:
-        symbols = symbols[start:] if start >= half else symbols[half:]
+        symbols = symbols[start:two_third] if start >= one_third and start < two_third else symbols[one_third:two_third]
         start = 0
+    elif FLAGS.shard == 2:
+        symbols = symbols[start:] if start >= two_third else symbols[two_third:]
+        start = 0
+    print("Retrieve historical quotes for %d symbols." % (len(symbols)))
     syncQuotes(symbols[start:], period=FLAGS.period, database=stock_db, proxy={"https": FLAGS.proxy} if FLAGS.proxy else None)
 
 if __name__ == "__main__":
