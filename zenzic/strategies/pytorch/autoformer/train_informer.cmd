@@ -1,0 +1,2 @@
+set PYTHONPATH=%PYTHONPATH%;C:\Users\xzhu\Documents\GitHub\trading\
+python -u run.py --is_training 1 --learning_rate 0.001 --root_path C:\Trading\Informer\2022-01-03\ --watchlist SP500 --startdate 2010-01-01 --model_id SP500 --model Informer --data StockPrice --features M --seq_len 256 --label_len 256 --pred_len 64 --e_layers 8 --d_layers 8 --d_model 384 --factor 6 --batch_size 64 --enc_in 4 --dec_in 4 --c_out 4 --des 'SP500' --itr 1 --num_workers 0
