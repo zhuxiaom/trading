@@ -27,11 +27,12 @@ class FinViz:
                 if ticker.text == symbol:
                     break
             
-            rows = self.__chrome.find_elements_by_css_selector('.fullview-title .fullview-links .tab-link')
-            assert (len(rows) == 3), "Only got %s" % (len(rows))
-            stock_info["Sector"] = rows[0].text.strip()
-            stock_info["Industry"] = rows[1].text.strip()
-            stock_info["Country"] = rows[2].text.strip()
+            rows = self.__chrome.find_elements_by_css_selector('table.fullview-title > tbody > tr > td > a.tab-link')
+            assert (len(rows) == 4), "Only got %s" % (len(rows))
+            stock_info['Company Name'] = rows[0].text.strip()
+            stock_info["Sector"] = rows[1].text.strip()
+            stock_info["Industry"] = rows[2].text.strip()
+            stock_info["Country"] = rows[3].text.strip()
             
             rows =  self.__chrome.find_elements_by_css_selector('[class=\'snapshot-table2\'] .table-dark-row')
             assert (len(rows) == 12), "Only got %s" % (len(rows))
