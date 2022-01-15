@@ -8,6 +8,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 from torch import optim
+from madgrad import MADGRAD
 
 import os
 import time
@@ -41,7 +42,9 @@ class Exp_Main(Exp_Basic):
 
     def _select_optimizer(self):
         # model_optim = optim.Adam(self.model.parameters(), lr=self.args.learning_rate)
-        model_optim = optim.NAdam(self.model.parameters(), lr=self.args.learning_rate)
+        # model_optim = optim.NAdam(self.model.parameters(), lr=self.args.learning_rate)
+        model_optim = MADGRAD(self.model.parameters(), lr=self.args.learning_rate)
+        # model_optim = optim.RAdam(self.model.parameters(), lr=self.args.learning_rate)
         return model_optim
 
     def _select_criterion(self):
@@ -177,7 +180,7 @@ class Exp_Main(Exp_Basic):
                 print("Early stopping")
                 break
 
-            adjust_learning_rate(model_optim, epoch + 1, self.args)
+            # adjust_learning_rate(model_optim, epoch + 1, self.args)
 
         best_model_path = path + '/' + 'checkpoint.pth'
         self.model.load_state_dict(torch.load(best_model_path))
@@ -253,7 +256,7 @@ class Exp_Main(Exp_Basic):
 
         mae, mse, rmse, mape, mspe = metric(preds, trues)
         print('mse:{}, mae:{}'.format(mse, mae))
-        f = open("result.txt", 'a')
+        f = open(os.path.join(self.args.root_path, 'test_results', setting, 'result.txt'), 'a')
         f.write(setting + "  \n")
         f.write('mse:{}, mae:{}'.format(mse, mae))
         f.write('\n')
