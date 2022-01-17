@@ -42,6 +42,7 @@ def syncQuotes(symbols, period="1mo", database=StockDB(), proxy=None):
         yahoo_only = yahoo.index.difference(db.index)
         db_only = db.index.difference(yahoo.index)
         common = yahoo.index.intersection(db.index)
+        diff = common
         try:
             diff = yahoo.loc[common].compare(db.loc[common]).index
         except ValueError as e:
