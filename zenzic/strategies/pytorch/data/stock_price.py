@@ -2,6 +2,7 @@ from numpy.ma.core import fabs
 from pymysql.err import NotSupportedError
 from zenzic.thirdparty.Autoformer.utils.timefeatures import time_features
 from zenzic.strategies.pytorch.data.utils import find_max_return
+from zenzic.data.watchlist import SP500
 from collections import defaultdict
 from tqdm import tqdm, trange
 import torch.utils.data as torch_data
@@ -121,20 +122,8 @@ class Dataset(torch_data.Dataset):
 
     def __get_symbols(self, watchlist):
         if watchlist == 'SP500':
-            query = """
-                SELECT symbol AS symbol FROM symbols JOIN stock_info
-                USING(sym_id) WHERE finviz_info->>'$.Index' LIKE '%S&P%'
-                AND u_date = (SELECT MAX(u_date) FROM stock_info)
-                ORDER BY symbol
-            """
-            symbols = pd.read_sql(query, self.__db_conn, index_col='symbol')
-            try:
-                # Remove duplicated assets.
-                symbols.drop(['DISCK', 'FOX', 'GOOG', 'NWS', 'UA'], inplace=True)
-            except:
-                pass
-            assert(len(symbols) == 498), 'Unexpected watchlist length {}!'.format(len(symbols))
-            return symbols.index.to_list()
+            sp500 = SP500()
+            return sp500.get_symbols()
         else:
             raise NotSupportedError("Watchlist {} is not supported!".format(watchlist))
 
