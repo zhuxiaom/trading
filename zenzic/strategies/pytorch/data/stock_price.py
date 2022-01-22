@@ -1,24 +1,13 @@
 from numpy.ma.core import fabs
 from pymysql.err import NotSupportedError
 from zenzic.thirdparty.Autoformer.utils.timefeatures import time_features
+from zenzic.strategies.pytorch.data.utils import find_max_return
 from collections import defaultdict
 from tqdm import tqdm, trange
-from numba import njit
 import torch.utils.data as torch_data
 import pymysql as mysql
 import pandas as pd
 import numpy as np
-
-@njit(parallel=True)
-def find_max_return(data, seq_len):
-    data_len = data.shape[0] - seq_len
-    max_val = np.zeros(data_len)
-
-    for i in range(data_len):
-        close = data[i][3]
-        if not np.isnan(close):
-            max_val[i] = np.fabs(data[i:i+seq_len, :] / close - 1).max()
-    return max_val.max()
 
 class Dataset(torch_data.Dataset):
     # Quote data cache avaiable at Class level.

@@ -20,7 +20,7 @@ parser.add_argument('--model', type=str, required=True, default='Autoformer',
 
 # data loader
 parser.add_argument('--data', type=str, required=True, default='ETTm1', help='dataset type')
-parser.add_argument('--watchlist', type=str, required=True, default='SP500', help='The stock watchlist name.')
+parser.add_argument('--watchlist', type=str, required=False, default='SP500', help='The stock watchlist name.')
 parser.add_argument('--root_path', type=str, default='./data/ETT/', help='The root path of the data file.')
 parser.add_argument('--startdate', type=str, default='1999-01-01', help='The start date of stock quotes.')
 parser.add_argument('--features', type=str, default='M',
@@ -29,6 +29,7 @@ parser.add_argument('--target', type=str, default='OT', help='target feature in 
 parser.add_argument('--freq', type=str, default='h',
                     help='freq for time features encoding, options:[s:secondly, t:minutely, h:hourly, d:daily, b:business days, w:weekly, m:monthly], you can also use more detailed freq like 15min or 3h')
 parser.add_argument('--checkpoints', type=str, default=None, help='location of model checkpoints')
+parser.add_argument('--data_file', type=str, default=None, help='Data file loaded by custom data loader')
 
 # forecasting task
 parser.add_argument('--seq_len', type=int, default=96, help='input sequence length')
@@ -61,7 +62,8 @@ parser.add_argument('--num_workers', type=int, default=10, help='data loader num
 parser.add_argument('--itr', type=int, default=2, help='experiments times')
 parser.add_argument('--train_epochs', type=int, default=10, help='train epochs')
 parser.add_argument('--batch_size', type=int, default=32, help='batch size of train input data')
-parser.add_argument('--patience', type=int, default=3, help='early stopping patience')
+parser.add_argument('--patience', type=int, default=5, help='early stopping patience')
+parser.add_argument('--lr_patience', type=int, default=2, help='learning rate scheduler patience')
 parser.add_argument('--learning_rate', type=float, default=0.0001, help='optimizer learning rate')
 parser.add_argument('--des', type=str, default='test', help='exp description')
 parser.add_argument('--loss', type=str, default='mse', help='loss function')

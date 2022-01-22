@@ -1,0 +1,2 @@
+set PYTHONPATH=%PYTHONPATH%;C:\Users\xzhu\Documents\GitHub\trading\
+python -u run.py --is_training 1 --root_path C:\Trading\Volatility\2022-01-18\ --data_file oxford_volatility.csv --learning_rate 0.0002 --train_epochs 100 --batch_size 64 --dropout 0.2 --model_id Volatility --model Autoformer --d_model 512 --d_ff 2048 --n_heads 4 --data OxfordVolatility --features MS --seq_len 256 --label_len 32 --pred_len 5 --e_layers 2 --d_layers 1 --factor 4 --enc_in 3 --dec_in 3 --c_out 3 --des Volatility --itr 1 --num_workers 0
