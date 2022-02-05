@@ -28,37 +28,32 @@ class StockDB(object):
         closes = []
         adj_closes = []
         volumes = []
-        s_fromdate = (fromdate.to_pydatetime() if fromdate else None)
-        s_todate = (todate.to_pydatetime() if todate else None)
-        if s_fromdate and s_todate:
-            cursor.execute("""SELECT * FROM quotes WHERE sym_id = (SELECT sym_id FROM symbols WHERE symbol = %s) AND q_date >= %s AND q_date <= %s ORDER BY q_date""", (symbol, s_fromdate, s_todate))
-        elif s_fromdate:
-            cursor.execute("""SELECT * FROM quotes WHERE sym_id = (SELECT sym_id FROM symbols WHERE symbol = %s) AND q_date >= %s ORDER BY q_date""", (symbol, s_fromdate))
-        elif s_todate:
-            cursor.execute("""SELECT * FROM quotes WHERE sym_id = (SELECT sym_id FROM symbols WHERE symbol = %s) AND q_date <= %s ORDER BY q_date""", (symbol, s_todate))
-        else:
-            cursor.execute("""SELECT * FROM quotes WHERE sym_id = (SELECT sym_id FROM symbols WHERE symbol = %s) ORDER BY q_date""", (symbol))
-        for row in cursor.fetchall():
-#            dt = pd.Timestamp(row[1].year, row[1].month, row[1].day)
-            dates.append(pd.to_datetime(row[1]))
-            ratio = 1.0
-            if adjclose:
-                ratio = row[6]*1.0/row[5]
-#            dates.append(dt)
-            opens.append(row[2]*ratio)
-            highs.append(row[3]*ratio)
-            lows.append(row[4]*ratio)
-            closes.append(row[5]*ratio)
-            adj_closes.append(row[6])
-            volumes.append(row[7])
-        
+        query = """
+            SELECT q_date, open, high, low, close, adj_close, volume
+            FROM quotes
+            WHERE sym_id = (SELECT sym_id FROM symbols WHERE symbol = '{}')
+        """.format(symbol)
+        if fromdate:
+            query += " AND q_date >= '{}'".format(pd.to_datetime(fromdate).date())
+        if todate:
+            query += " AND q_date < '{}'".format(pd.to_datetime(todate).date())
+        quotes = pd.read_sql(query, self.__conn)
+        quotes['q_date'] = pd.to_datetime(quotes['q_date'])
+
+        if adjclose:
+            quotes['ratio'] = quotes['adj_close'] / quotes['close']
+            quotes['open'] = quotes['open'] * quotes['ratio']
+            quotes['high'] = quotes['high'] * quotes['ratio']
+            quotes['low'] = quotes['low'] * quotes['ratio']
+            quotes['close'] = quotes['close'] * quotes['ratio']
+            quotes.drop(columns=['ratio'], inplace=True)
+        quotes.rename(
+            columns={'q_date': 'Date', 'open': 'Open', 'high': 'High', 'low': 'Low', 'close': 'Close', 'adj_close': 'Adj Close', 'volume': 'Volume'},
+            inplace=True)
+        quotes.set_index('Date', inplace=True)
         if returnfmt == 'pandas':
-            quotes = pd.DataFrame({"Date": dates, "Open": opens, "High": highs, "Low": lows, "Close": closes, "Adj Close": adj_closes, "Volume": volumes})
-            quotes = quotes.set_index("Date")
             return quotes
         else:
-            quotes = pd.DataFrame({"Date": dates, "Open": opens, "High": highs, "Low": lows, "Close": closes, "Adj Close": adj_closes, "Volume": volumes})
-            quotes = quotes.set_index("Date")
             return PandasDirectData(dataname=quotes, fromdate=fromdate, todate=todate, openinterest=-1)
 
     def getStockSymbols(self, type="finviz"):
