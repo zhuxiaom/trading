@@ -49,6 +49,17 @@ bash ./scripts/ILI_script/Autoformer.sh
 
 - **Without the position embedding:** Since the series-wise connection will inherently keep the sequential information, Autoformer does not need the position embedding, which is different from Transformers.
 
+### Reproduce with Docker
+
+To easily reproduce the results using Docker, conda and Make,  you can follow the next steps:
+1. Initialize the docker image using: `make init`. 
+2. Download the datasets using: `make get_dataset`.
+3. Run each script in `scripts/` using `make run_module module="bash scripts/ETT_script/Autoformer_ETTm1.sh"` for each script.
+4. Alternatively, run all the scripts at once:
+```
+for file in `ls scripts`; do make run_module module="bash scripts/$script"; done
+```
+
 ## Main Results
 
 We experiment on six benchmarks, covering five main-stream applications. We compare our model with ten baselines, including Informer, N-BEATS, etc. Generally, for the long-term forecasting setting, Autoformer achieves SOTA, with a **38% relative improvement** over previous baselines.
