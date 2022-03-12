@@ -11,8 +11,8 @@ from zenzic.thirdparty.Autoformer.layers.Autoformer_EncDec import Encoder, Encod
 from madgrad import MADGRAD
 from torchmetrics.functional import accuracy
 
-# Autoformer in Trade model
-class AiT(pl.LightningModule):
+# Autoformer Encoder of Trades model
+class AEoT(pl.LightningModule):
     def __init__(self, configs):
         super().__init__()
         self.seq_len = configs.seq_len

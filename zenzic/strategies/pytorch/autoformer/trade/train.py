@@ -1,5 +1,5 @@
 import torch
-from zenzic.strategies.pytorch.autoformer.trade.models import AiT
+from zenzic.strategies.pytorch.autoformer.trade.models import AEoT
 from zenzic.strategies.pytorch.data.trades import Dataset
 from argparse import ArgumentParser
 from torch.utils.data import DataLoader
@@ -21,7 +21,7 @@ def main():
     parser.add_argument('--data_file', type=str, required=True)
     parser.add_argument('--output_dir', type=str, required=True)
     parser.add_argument('--max_epochs', type=int, default=100)
-    parser = AiT.add_model_args(parser)
+    parser = AEoT.add_model_args(parser)
     args = parser.parse_args()
 
     # ------------
@@ -40,12 +40,12 @@ def main():
     logger = TensorBoardLogger(
         save_dir=args.output_dir, name='tensorboard_logs')
     logger.log_hyperparams(args)
-    model = AiT(args)
+    model = AEoT(args)
     lr_logger = LearningRateMonitor()  # log the learning rate
     save_model = ModelCheckpoint(
         monitor="val_loss",
         dirpath=os.path.join(logger.log_dir, 'best_models'),
-        filename="ait-{epoch:03d}-{val_loss:.6f}",
+        filename="AEoT-{epoch:03d}-{val_loss:.6f}",
         save_top_k=3,
         mode="min",
         save_on_train_epoch_end=False,
