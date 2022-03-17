@@ -63,15 +63,18 @@ class Dataset(torch_data.Dataset):
                 padding = self.__seq_len - (idx - min_idx)
                 beg_idx = min_idx
             x = self.__quotes[['Open', 'High', 'Low', 'Close']].iloc[beg_idx:idx].values
-            x = np.log(x / x[-1][-1])
+            x = np.log(x / x[0][-1])
             y = self.__quotes['Label'].iloc[idx]
             date_enc_x = np.vstack(self.__quotes['Date Enc'].iloc[beg_idx:idx].values)
+            date_enc_y = self.__quotes['Date Enc'].iloc[idx]
             if padding != 0:
                 x = np.vstack((np.zeros((padding, x.shape[-1])), x))
                 date_enc_x = np.vstack((np.zeros((padding, date_enc_x.shape[-1])), date_enc_x))
-            self.__cache[index] = (x.astype(np.float32), date_enc_x.astype(np.float32), y.astype(np.int32))
-        x, date_enc_x, y = self.__cache[index]
-        return x, date_enc_x, y
+            self.__cache[index] =(
+                x.astype(np.float32), date_enc_x.astype(np.float32),
+                y.astype(np.int32), date_enc_y.astype(np.float32))
+        x, date_enc_x, y, date_enc_y = self.__cache[index]
+        return x, date_enc_x, y, date_enc_y
 
 # Load WealthLab trades
 def load_wl_trades(fname):
