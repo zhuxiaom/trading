@@ -63,7 +63,7 @@ class Dataset(torch_data.Dataset):
                 padding = self.__seq_len - (idx - min_idx)
                 beg_idx = min_idx
             x = self.__quotes[['Open', 'High', 'Low', 'Close']].iloc[beg_idx:idx].values
-            x = np.log(x / x[0][-1])
+            x = np.log(x / x[-1][-1])
             y = self.__quotes['Label'].iloc[idx]
             date_enc_x = np.vstack(self.__quotes['Date Enc'].iloc[beg_idx:idx].values)
             date_enc_y = self.__quotes['Date Enc'].iloc[idx]

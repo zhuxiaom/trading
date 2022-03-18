@@ -57,9 +57,9 @@ class AEoT(pl.LightningModule):
     def forward(self, x_enc, x_mark_enc, enc_self_mask=None):
         enc_out = self.enc_embedding(x_enc, x_mark_enc)
         # add cls to the end.
-        cls = torch.zeros(
-            enc_out.shape[0], 1, enc_out.shape[2], device=enc_out.device)
-        enc_out = torch.cat((enc_out, cls), dim=1)
+        # cls = torch.zeros(
+        #     enc_out.shape[0], 1, enc_out.shape[2], device=enc_out.device)
+        # enc_out = torch.cat((enc_out, cls), dim=1)
         enc_out, _ = self.encoder(enc_out, attn_mask=enc_self_mask)
 
         # output
