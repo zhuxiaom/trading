@@ -6,6 +6,8 @@ Time series forecasting is a critical demand for real applications. Enlighted by
 
 In long-term forecasting, Autoformer achieves SOTA, with a **38% relative improvement** on six benchmarks, covering five practical applications: **energy, traffic, economics, weather and disease**.
 
+:triangular_flag_on_post:**News** (2022.02-2022.03) Autoformer has been deployed in [2022 Winter Olympics](https://en.wikipedia.org/wiki/2022_Winter_Olympics) to provide weather forecasting for competition venues, including wind speed and temperature.
+
 ## Autoformer vs. Transformers
 
 **1. Deep decomposition architecture**
@@ -75,8 +77,8 @@ We will keep adding series forecasting models to expand this repo:
 - [x] Autoformer
 - [x] Informer
 - [x] Transformer
+- [x] Reformer
 - [ ] LogTrans
-- [ ] Reformer
 - [ ] N-BEATS
 
 ## Citation
