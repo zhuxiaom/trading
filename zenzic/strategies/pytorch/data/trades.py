@@ -13,9 +13,10 @@ from numba import njit
 from tqdm import tqdm
 
 class Dataset(torch_data.Dataset):
-    def __init__(self, filename, type, seq_len):
+    def __init__(self, filename, type, seq_len, channel_first=False):
         self.__cache = defaultdict(int)
         self.__seq_len = seq_len
+        self.__channel_first = channel_first
         self.__quotes = pd.read_pickle(filename)
         self.__min_idx = self.__quotes['Symbol'].reset_index().groupby('Symbol').min()
         self.__trades = self.__quotes[
@@ -70,6 +71,9 @@ class Dataset(torch_data.Dataset):
             if padding != 0:
                 x = np.vstack((np.zeros((padding, x.shape[-1])), x))
                 date_enc_x = np.vstack((np.zeros((padding, date_enc_x.shape[-1])), date_enc_x))
+            if self.__channel_first:
+                x = np.transpose(x)
+                date_enc_x = np.transpose(date_enc_x)
             self.__cache[index] =(
                 x.astype(np.float32), date_enc_x.astype(np.float32),
                 y.astype(np.int32), date_enc_y.astype(np.float32))
