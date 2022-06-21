@@ -61,7 +61,7 @@ def main():
     )
     stoch_weight_avg = StochasticWeightAveraging(swa_epoch_start=6, swa_lrs=0.01, device=None)
     early_stop_callback = EarlyStopping(
-        monitor="val_f1",
+        monitor="val_prec",
         min_delta=1e-4,
         patience=args.early_stopping,
         verbose=False,

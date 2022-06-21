@@ -13,7 +13,7 @@ class SCINetTrades(pl.LightningModule):
     def __init__(self, configs):
         super().__init__()
         self.backbone = SCINet(
-            output_len=1,
+            output_len=configs.output_len,
             input_len=configs.window_size,
             input_dim=configs.input_dim,
             hid_size=configs.hidden_size,
@@ -29,15 +29,31 @@ class SCINetTrades(pl.LightningModule):
             modified=True,
             RIN=configs.RIN
         )
-        self.linear = nn.Linear(in_features=configs.input_dim, out_features=1, bias=True)
+        self.conv = nn.Conv2d(in_channels=1, out_channels=1, kernel_size=(4, 1), bias=False)
+        torch.nn.init.kaiming_uniform(self.conv.weight)
+        self.dropout = nn.Dropout2d(p=configs.dropout)
+        if self.backbone.output_len > 1:
+            self.linear = nn.Linear(in_features=self.backbone.output_len, out_features=1, bias=False)
+        else:
+            self.linear = nn.Linear(in_features=self.backbone.input_dim, out_features=1, bias=False)
+        torch.nn.init.kaiming_uniform(self.linear.weight)
+        # self.linear.bias.data.fill_(0.01)
         self.activation = nn.Sigmoid()
         self.learning_rate = configs.learning_rate
         self.lr_patience = configs.lr_patience
 
     def forward(self, x):
         backbone_out = self.backbone(x)
-        linear_out = self.linear(torch.squeeze(backbone_out))
-        return self.activation(torch.squeeze(linear_out))
+        if self.backbone.output_len > 1:
+            conv_in = torch.unsqueeze(backbone_out, 1)
+            conv_in = torch.permute(conv_in, (0, 1, 3, 2))
+            conv_out = self.conv(conv_in)
+            conv_out = self.dropout(conv_out)
+            linear_out = self.linear(torch.squeeze(conv_out))
+            return self.activation(torch.squeeze(linear_out))
+        else:
+            linear_out = self.linear(torch.squeeze(backbone_out))
+            return self.activation(torch.squeeze(linear_out))
     
     def training_step(self, batch, batch_idx):
         x, _, y, _ = batch
@@ -100,7 +116,7 @@ class SCINetTrades(pl.LightningModule):
         parser.add_argument('--kernel', default=5, type=int, help='kernel size')#k kernel size
         parser.add_argument('--dilation', default=1, type=int, help='dilation')
         parser.add_argument('--positionalEcoding', type=bool , default=False)
-        parser.add_argument('--dropout', type=float, default=0.5)
+        parser.add_argument('--dropout', type=float, default=0.1)
         parser.add_argument('--groups', type=int, default=1)
         parser.add_argument('--levels', type=int, default=3)
         parser.add_argument('--num_decoder_layer', type=int, default=1)
@@ -110,6 +126,7 @@ class SCINetTrades(pl.LightningModule):
         ### -------  input/output length settings --------------
         parser.add_argument('--window_size', type=int, default=168, help='input length')
         parser.add_argument('--input_dim', type=int, default=4, help='input length')
+        parser.add_argument('--output_len', type=int, default=1, help='input length')
         parser.add_argument('--concat_len', type=int, default=165)
         parser.add_argument('--single_step_output_One', type=int, default=0, help='only output the single final step')
         ### -------  optimizer settings --------------
