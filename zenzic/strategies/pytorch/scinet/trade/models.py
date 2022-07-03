@@ -30,9 +30,14 @@ class SCINetTrades(pl.LightningModule):
             modified=True,
             RIN=configs.RIN
         )
+        
         self.norm = nn.BatchNorm1d(configs.input_dim)
+        self.norm.weight.data.fill_(1)
+        self.norm.bias.data.zero_()
+
         self.conv = nn.Conv2d(in_channels=1, out_channels=1, kernel_size=(4, 1), bias=False)
         torch.nn.init.kaiming_uniform(self.conv.weight)
+        
         self.dropout = nn.Dropout2d(p=configs.dropout)
         if self.backbone.output_len > 1:
             self.linear = nn.Linear(in_features=self.backbone.output_len, out_features=1, bias=False)
