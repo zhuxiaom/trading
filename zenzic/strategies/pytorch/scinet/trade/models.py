@@ -3,6 +3,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from madgrad import MADGRAD
+from torch.optim import Adam
 from torchmetrics.functional import accuracy, f1_score, precision_recall
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from zenzic.thirdparty.SCINet.models.SCINet import SCINet
@@ -29,6 +30,7 @@ class SCINetTrades(pl.LightningModule):
             modified=True,
             RIN=configs.RIN
         )
+        self.norm = nn.BatchNorm1d(configs.input_dim)
         self.conv = nn.Conv2d(in_channels=1, out_channels=1, kernel_size=(4, 1), bias=False)
         torch.nn.init.kaiming_uniform(self.conv.weight)
         self.dropout = nn.Dropout2d(p=configs.dropout)
@@ -43,7 +45,8 @@ class SCINetTrades(pl.LightningModule):
         self.lr_patience = configs.lr_patience
 
     def forward(self, x):
-        backbone_out = self.backbone(x)
+        batch_norm_out = self.norm(torch.permute(x, (0, 2, 1)))
+        backbone_out = self.backbone(torch.permute(batch_norm_out, (0, 2, 1)))
         if self.backbone.output_len > 1:
             conv_in = torch.unsqueeze(backbone_out, 1)
             conv_in = torch.permute(conv_in, (0, 1, 3, 2))
@@ -96,7 +99,8 @@ class SCINetTrades(pl.LightningModule):
         })
 
     def configure_optimizers(self):
-        optimizer = MADGRAD(self.parameters(), self.learning_rate)
+        # optimizer = MADGRAD(self.parameters(), self.learning_rate)
+        optimizer = Adam(self.parameters(), self.learning_rate)
         scheduler = ReduceLROnPlateau(optimizer, mode='max', patience=self.lr_patience)
         if self.lr_patience <= 0:
             return optimizer
@@ -124,7 +128,7 @@ class SCINetTrades(pl.LightningModule):
         parser.add_argument('--long_term_forecast', action='store_true', default=False)
         parser.add_argument('--RIN', type=bool, default=False)
         ### -------  input/output length settings --------------
-        parser.add_argument('--window_size', type=int, default=168, help='input length')
+        parser.add_argument('--window_size', type=int, default=64, help='input length')
         parser.add_argument('--input_dim', type=int, default=4, help='input length')
         parser.add_argument('--output_len', type=int, default=1, help='input length')
         parser.add_argument('--concat_len', type=int, default=165)
