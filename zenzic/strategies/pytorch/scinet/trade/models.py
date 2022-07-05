@@ -1,3 +1,4 @@
+import numpy as np
 import pytorch_lightning as pl
 import torch
 import torch.nn as nn
@@ -16,7 +17,7 @@ class SCINetTrades(pl.LightningModule):
         self.backbone = SCINet(
             output_len=configs.output_len,
             input_len=configs.window_size,
-            input_dim=configs.input_dim,
+            input_dim=configs.input_dim * 2,
             hid_size=configs.hidden_size,
             num_stacks=configs.stacks,
             num_levels=configs.levels,
@@ -35,30 +36,45 @@ class SCINetTrades(pl.LightningModule):
         self.norm.weight.data.fill_(1)
         self.norm.bias.data.zero_()
 
-        self.conv = nn.Conv2d(in_channels=1, out_channels=1, kernel_size=(4, 1), bias=False)
-        torch.nn.init.kaiming_uniform(self.conv.weight)
+        self.avg_size = configs.avg_size
+        self.__front_padding_size = int(np.floor((self.avg_size - 1) / 2))
+        self.__end_padding_size = int(np.ceil((self.avg_size - 1) / 2))
+        self.avg = nn.AvgPool1d(self.avg_size, stride=1, padding=0)
+
+        self.conv = nn.Conv2d(in_channels=1, out_channels=1, kernel_size=(configs.input_dim * 2, 1), bias=False)
+        torch.nn.init.kaiming_uniform_(self.conv.weight)
         
         self.dropout = nn.Dropout2d(p=configs.dropout)
         if self.backbone.output_len > 1:
             self.linear = nn.Linear(in_features=self.backbone.output_len, out_features=1, bias=False)
         else:
             self.linear = nn.Linear(in_features=self.backbone.input_dim, out_features=1, bias=False)
-        torch.nn.init.kaiming_uniform(self.linear.weight)
+        torch.nn.init.kaiming_uniform_(self.linear.weight)
         # self.linear.bias.data.fill_(0.01)
         self.activation = nn.Sigmoid()
         self.learning_rate = configs.learning_rate
         self.lr_patience = configs.lr_patience
 
     def forward(self, x):
-        batch_norm_out = self.norm(torch.permute(x, (0, 2, 1)))
-        backbone_out = self.backbone(torch.permute(batch_norm_out, (0, 2, 1)))
+        x_norm = self.norm(torch.permute(x, (0, 2, 1)))
+
+        # padding on the both ends of time series
+        front = x_norm[:, :, 0:1].repeat(1, 1, self.__front_padding_size)
+        end = x_norm[:, :, -1:].repeat(1, 1, self.__end_padding_size)
+        avg_in = torch.cat([front, x_norm, end], dim=2)
+        trend = self.avg(avg_in).permute(0, 2, 1)
+        res = x_norm.permute(0, 2, 1) - trend
+
+        backbone_in = torch.cat([trend, res], dim=2)
+        backbone_out = self.backbone(backbone_in)
+
         if self.backbone.output_len > 1:
             conv_in = torch.unsqueeze(backbone_out, 1)
             conv_in = torch.permute(conv_in, (0, 1, 3, 2))
             conv_out = self.conv(conv_in)
             conv_out = self.dropout(conv_out)
             linear_out = self.linear(torch.squeeze(conv_out))
-            return self.activation(torch.squeeze(linear_out))
+            return self.activation(torch.squeeze(linear_out))   
         else:
             linear_out = self.linear(torch.squeeze(backbone_out))
             return self.activation(torch.squeeze(linear_out))
@@ -132,10 +148,11 @@ class SCINetTrades(pl.LightningModule):
         parser.add_argument('--stacks', type=int, default=1)
         parser.add_argument('--long_term_forecast', action='store_true', default=False)
         parser.add_argument('--RIN', type=bool, default=False)
+        parser.add_argument('--avg_size', type=int, default=21)
         ### -------  input/output length settings --------------
         parser.add_argument('--window_size', type=int, default=64, help='input length')
         parser.add_argument('--input_dim', type=int, default=4, help='input length')
-        parser.add_argument('--output_len', type=int, default=1, help='input length')
+        parser.add_argument('--output_len', type=int, default=1, help='output length')
         parser.add_argument('--concat_len', type=int, default=165)
         parser.add_argument('--single_step_output_One', type=int, default=0, help='only output the single final step')
         ### -------  optimizer settings --------------
