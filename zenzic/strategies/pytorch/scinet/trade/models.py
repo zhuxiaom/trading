@@ -14,10 +14,29 @@ from argparse import ArgumentParser
 class SCINetTrades(pl.LightningModule):
     def __init__(self, configs):
         super().__init__()
-        self.backbone = SCINet(
+        # Trend backbone network.
+        self.avg_backbone = SCINet(
             output_len=configs.output_len,
             input_len=configs.window_size,
-            input_dim=configs.input_dim * 2,
+            input_dim=configs.input_dim,
+            hid_size=configs.hidden_size,
+            num_stacks=configs.stacks,
+            num_levels=configs.levels,
+            num_decoder_layer=configs.num_decoder_layer,
+            concat_len=configs.concat_len,
+            groups=configs.groups,
+            kernel=configs.kernel,
+            dropout=configs.dropout,
+            single_step_output_One=configs.single_step_output_One,
+            positionalE=configs.positionalEcoding,
+            modified=True,
+            RIN=configs.RIN
+        )
+        # Residual backbone network.
+        self.res_backbone = SCINet(
+            output_len=configs.output_len,
+            input_len=configs.window_size,
+            input_dim=configs.input_dim,
             hid_size=configs.hidden_size,
             num_stacks=configs.stacks,
             num_levels=configs.levels,
@@ -41,14 +60,7 @@ class SCINetTrades(pl.LightningModule):
         self.__end_padding_size = int(np.ceil((self.avg_size - 1) / 2))
         self.avg = nn.AvgPool1d(self.avg_size, stride=1, padding=0)
 
-        self.conv = nn.Conv2d(in_channels=1, out_channels=1, kernel_size=(configs.input_dim * 2, 1), bias=False)
-        torch.nn.init.kaiming_uniform_(self.conv.weight)
-        
-        self.dropout = nn.Dropout2d(p=configs.dropout)
-        if self.backbone.output_len > 1:
-            self.linear = nn.Linear(in_features=self.backbone.output_len, out_features=1, bias=False)
-        else:
-            self.linear = nn.Linear(in_features=self.backbone.input_dim, out_features=1, bias=False)
+        self.linear = nn.Linear(in_features=self.avg_backbone.input_dim * 2, out_features=1, bias=False)
         torch.nn.init.kaiming_uniform_(self.linear.weight)
         # self.linear.bias.data.fill_(0.01)
         self.activation = nn.Sigmoid()
@@ -56,28 +68,20 @@ class SCINetTrades(pl.LightningModule):
         self.lr_patience = configs.lr_patience
 
     def forward(self, x):
-        x_norm = self.norm(torch.permute(x, (0, 2, 1)))
-
         # padding on the both ends of time series
+        x_norm = self.norm(x.permute(0, 2, 1))
         front = x_norm[:, :, 0:1].repeat(1, 1, self.__front_padding_size)
         end = x_norm[:, :, -1:].repeat(1, 1, self.__end_padding_size)
         avg_in = torch.cat([front, x_norm, end], dim=2)
-        trend = self.avg(avg_in).permute(0, 2, 1)
-        res = x_norm.permute(0, 2, 1) - trend
+        trend = self.avg(avg_in)
+        res = x_norm - trend
 
-        backbone_in = torch.cat([trend, res], dim=2)
-        backbone_out = self.backbone(backbone_in)
-
-        if self.backbone.output_len > 1:
-            conv_in = torch.unsqueeze(backbone_out, 1)
-            conv_in = torch.permute(conv_in, (0, 1, 3, 2))
-            conv_out = self.conv(conv_in)
-            conv_out = self.dropout(conv_out)
-            linear_out = self.linear(torch.squeeze(conv_out))
-            return self.activation(torch.squeeze(linear_out))   
-        else:
-            linear_out = self.linear(torch.squeeze(backbone_out))
-            return self.activation(torch.squeeze(linear_out))
+        avg_backbone_out = self.avg_backbone(trend.permute(0, 2, 1))
+        res_backbone_out = self.res_backbone(res.permute(0, 2, 1))
+        backbone_out = torch.cat((avg_backbone_out, res_backbone_out), dim=2)
+        
+        linear_out = self.linear(torch.squeeze(backbone_out))
+        return self.activation(torch.squeeze(linear_out))
     
     def training_step(self, batch, batch_idx):
         x, _, y, _ = batch
@@ -122,14 +126,14 @@ class SCINetTrades(pl.LightningModule):
     def configure_optimizers(self):
         # optimizer = MADGRAD(self.parameters(), self.learning_rate)
         optimizer = Adam(self.parameters(), self.learning_rate)
-        scheduler = ReduceLROnPlateau(optimizer, mode='max', patience=self.lr_patience)
+        scheduler = ReduceLROnPlateau(optimizer, mode='min', patience=self.lr_patience)
         if self.lr_patience <= 0:
             return optimizer
         else:
             return {
                 "optimizer": optimizer,
                 "lr_scheduler": scheduler,
-                "monitor": "val_f1"
+                "monitor": "val_loss"
             }
 
     @staticmethod
