@@ -1,3 +1,4 @@
+from unicodedata import bidirectional
 import numpy as np
 import pytorch_lightning as pl
 import torch
@@ -9,16 +10,32 @@ from torchmetrics.functional import accuracy, f1_score, precision_recall
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from zenzic.thirdparty.SCINet.models.SCINet import SCINet
 from argparse import ArgumentParser
+from torch.autograd import Variable
 
 # SCINet in Trades Classifier.
 class SCINetTrades(pl.LightningModule):
     def __init__(self, configs):
         super().__init__()
-        # Trend backbone network.
-        self.avg_backbone = SCINet(
+
+        # Input RNN layer.
+        self.input_dim = configs.input_dim
+        self.input_rnn_hidden_size = configs.input_rnn_hidden_size
+        self.rnn = nn.GRU(
+            input_size=configs.input_dim, hidden_size=self.input_rnn_hidden_size, num_layers=1,
+            bias=False, batch_first=True, dropout=0.0, bidirectional=True)
+        for name, param in self.rnn.named_parameters():
+            if 'bias' in name:
+                 nn.init.constant_(param, 0.0)
+            elif 'weight_ih' in name:
+                 nn.init.kaiming_normal_(param)
+            elif 'weight_hh' in name:
+                 nn.init.orthogonal_(param)
+
+        # Forward backbone network.
+        self.fwd_backbone = SCINet(
             output_len=configs.output_len,
             input_len=configs.window_size,
-            input_dim=configs.input_dim,
+            input_dim=self.input_rnn_hidden_size,
             hid_size=configs.hidden_size,
             num_stacks=configs.stacks,
             num_levels=configs.levels,
@@ -32,11 +49,11 @@ class SCINetTrades(pl.LightningModule):
             modified=True,
             RIN=configs.RIN
         )
-        # Residual backbone network.
-        self.res_backbone = SCINet(
+        # Backward backbone network.
+        self.bwd_backbone = SCINet(
             output_len=configs.output_len,
             input_len=configs.window_size,
-            input_dim=configs.input_dim,
+            input_dim=self.input_rnn_hidden_size,
             hid_size=configs.hidden_size,
             num_stacks=configs.stacks,
             num_levels=configs.levels,
@@ -50,17 +67,8 @@ class SCINetTrades(pl.LightningModule):
             modified=True,
             RIN=configs.RIN
         )
-        
-        self.norm = nn.BatchNorm1d(configs.input_dim)
-        self.norm.weight.data.fill_(1)
-        self.norm.bias.data.zero_()
 
-        self.avg_size = configs.avg_size
-        self.__front_padding_size = int(np.floor((self.avg_size - 1) / 2))
-        self.__end_padding_size = int(np.ceil((self.avg_size - 1) / 2))
-        self.avg = nn.AvgPool1d(self.avg_size, stride=1, padding=0)
-
-        self.linear = nn.Linear(in_features=self.avg_backbone.input_dim * 2, out_features=1, bias=False)
+        self.linear = nn.Linear(in_features=self.input_rnn_hidden_size * 2, out_features=1, bias=False)
         torch.nn.init.kaiming_uniform_(self.linear.weight)
         # self.linear.bias.data.fill_(0.01)
         self.activation = nn.Sigmoid()
@@ -68,17 +76,14 @@ class SCINetTrades(pl.LightningModule):
         self.lr_patience = configs.lr_patience
 
     def forward(self, x):
-        # padding on the both ends of time series
-        x_norm = self.norm(x.permute(0, 2, 1))
-        front = x_norm[:, :, 0:1].repeat(1, 1, self.__front_padding_size)
-        end = x_norm[:, :, -1:].repeat(1, 1, self.__end_padding_size)
-        avg_in = torch.cat([front, x_norm, end], dim=2)
-        trend = self.avg(avg_in)
-        res = x_norm - trend
+        h_0 = torch.zeros(2, x.size(0), self.input_rnn_hidden_size, device=x.device, requires_grad=True)
+        rnn_out, _ = self.rnn(x, h_0)
+        rnn_out_fwd = rnn_out[:, :, 0:self.input_dim]
+        rnn_out_bwd = rnn_out[:, :, self.input_dim:]
 
-        avg_backbone_out = self.avg_backbone(trend.permute(0, 2, 1))
-        res_backbone_out = self.res_backbone(res.permute(0, 2, 1))
-        backbone_out = torch.cat((avg_backbone_out, res_backbone_out), dim=2)
+        fwd_backbone_out = self.fwd_backbone(rnn_out_fwd)
+        bwd_backbone_out = self.bwd_backbone(rnn_out_bwd)
+        backbone_out = torch.cat((fwd_backbone_out, bwd_backbone_out), dim=2)
         
         linear_out = self.linear(torch.squeeze(backbone_out))
         return self.activation(torch.squeeze(linear_out))
@@ -126,7 +131,8 @@ class SCINetTrades(pl.LightningModule):
     def configure_optimizers(self):
         # optimizer = MADGRAD(self.parameters(), self.learning_rate)
         optimizer = Adam(self.parameters(), self.learning_rate)
-        scheduler = ReduceLROnPlateau(optimizer, mode='min', patience=self.lr_patience)
+        scheduler = ReduceLROnPlateau(
+            optimizer, mode='min', patience=self.lr_patience, min_lr=1e-4)
         if self.lr_patience <= 0:
             return optimizer
         else:
@@ -152,7 +158,7 @@ class SCINetTrades(pl.LightningModule):
         parser.add_argument('--stacks', type=int, default=1)
         parser.add_argument('--long_term_forecast', action='store_true', default=False)
         parser.add_argument('--RIN', type=bool, default=False)
-        parser.add_argument('--avg_size', type=int, default=21)
+        parser.add_argument('--input_rnn_hidden_size', type=int, default=4)
         ### -------  input/output length settings --------------
         parser.add_argument('--window_size', type=int, default=64, help='input length')
         parser.add_argument('--input_dim', type=int, default=4, help='input length')

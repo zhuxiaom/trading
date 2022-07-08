@@ -24,7 +24,7 @@ def main():
     parser.add_argument('--early_stopping', type=int, default=10)
     parser = SCINetTrades.add_model_args(parser)
     args = parser.parse_args()
-    args.early_stopping = max(args.early_stopping, 3 * args.lr_patience + 1)
+    args.early_stopping = max(args.early_stopping, 2 * args.lr_patience + 1)
 
     # ------------
     # data
