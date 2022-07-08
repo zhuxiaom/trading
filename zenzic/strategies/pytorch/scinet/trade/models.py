@@ -10,7 +10,6 @@ from torchmetrics.functional import accuracy, f1_score, precision_recall
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from zenzic.thirdparty.SCINet.models.SCINet import SCINet
 from argparse import ArgumentParser
-from torch.autograd import Variable
 
 # SCINet in Trades Classifier.
 class SCINetTrades(pl.LightningModule):
