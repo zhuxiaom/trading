@@ -12,7 +12,7 @@ parser = argparse.ArgumentParser(description='SCINet on financial datasets')
 parser.add_argument('--dataset_name', type=str, default='exchange_rate', choices=['electricity', 'solar_AL', 'exchange_rate', 'traffic'])
 parser.add_argument('--data', type=str, default='./datasets/exchange_rate.txt',
                     help='location of the data file')
-parser.add_argument('--normalize', type=int, default=2)
+parser.add_argument('--normalize', type=int, default=0)
 
 ### -------  device settings --------------
 parser.add_argument('--device',type=str,default='cuda:0',help='')
@@ -60,6 +60,7 @@ parser.add_argument('--num_decoder_layer', type=int, default=1)
 parser.add_argument('--stacks', type=int, default=1)
 parser.add_argument('--long_term_forecast', action='store_true', default=False)
 parser.add_argument('--RIN', type=bool, default=False)
+parser.add_argument('--decompose', type=bool,default=False)
 
 args = parser.parse_args()
 
