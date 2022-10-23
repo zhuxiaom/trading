@@ -1,5 +1,5 @@
 import torch
-from zenzic.strategies.pytorch.scinet.trade.models import SCINetTrades
+from zenzic.strategies.pytorch.scinet.trade.model import SCINetTrades
 from zenzic.strategies.pytorch.data.trades import Dataset
 from argparse import ArgumentParser
 from torch.utils.data import DataLoader
@@ -32,7 +32,7 @@ def main():
     train_loader = DataLoader(
         Dataset(args.data_file, 'train', args.window_size),
         batch_size=args.batch_size,
-        num_workers=4,
+        num_workers=6,
         shuffle=True,
         persistent_workers=True)
     val_loader = DataLoader(
