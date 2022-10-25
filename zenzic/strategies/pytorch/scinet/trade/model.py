@@ -20,7 +20,7 @@ class SCINetTrades(pl.LightningModule):
         self.input_dim = configs.input_dim
         self.input_rnn_hidden_size = configs.input_rnn_hidden_size
         self.rnn = nn.GRU(
-            input_size=configs.input_dim, hidden_size=self.input_rnn_hidden_size, num_layers=1,
+            input_size=configs.input_dim, hidden_size=self.input_rnn_hidden_size, num_layers=2,
             bias=False, batch_first=True, dropout=0.0, bidirectional=True)
         for name, param in self.rnn.named_parameters():
             if 'bias' in name:
@@ -75,7 +75,7 @@ class SCINetTrades(pl.LightningModule):
         self.lr_patience = configs.lr_patience
 
     def forward(self, x):
-        h_0 = torch.zeros(2, x.size(0), self.input_rnn_hidden_size, device=x.device, requires_grad=True)
+        h_0 = torch.zeros(4, x.size(0), self.input_rnn_hidden_size, device=x.device, requires_grad=True)
         rnn_out, _ = self.rnn(x, h_0)
         rnn_out_fwd = rnn_out[:, :, 0:self.input_dim]
         rnn_out_bwd = rnn_out[:, :, self.input_dim:]
