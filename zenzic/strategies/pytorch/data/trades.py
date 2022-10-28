@@ -1,9 +1,11 @@
+from concurrent.futures import thread
 import pandas as pd
 import numpy as np
 import argparse
-from sqlalchemy import column
 from torch import frac, int32
+import torch
 import torch.utils.data as torch_data
+from multiprocessing import Pool
 
 from collections import defaultdict
 from zenzic.data.watchlist import SP500
@@ -11,10 +13,10 @@ from zenzic.strategies.pytorch.data.utils import load_hist_quotes
 from zenzic.thirdparty.Autoformer.utils.timefeatures import time_features
 from numba import njit
 from tqdm import tqdm
+from torch.utils.data import TensorDataset
 
 class Dataset(torch_data.Dataset):
     def __init__(self, filename, type, seq_len, channel_first=False):
-        self.__cache = defaultdict(int)
         self.__seq_len = seq_len
         self.__channel_first = channel_first
         self.__quotes = pd.read_pickle(filename)
@@ -45,12 +47,13 @@ class Dataset(torch_data.Dataset):
         # if type == 'train':
         #     # Shuffle the samples so that they are not sorted by (Symbol, Date).
         #     self.__trades = self.__trades.sample(frac=1).reset_index(drop=True)
+        self.__cache = [None] * self.__total_samples
 
     def __len__(self):
         return self.__total_samples
 
     def __getitem__(self, index):
-        if self.__cache[index] == 0:
+        if self.__cache[index] is None:
             # sym = self.__trades['Symbol'].iloc[index]
             # dt = self.__trades['Date'].iloc[index]
             # idx = self.__quotes.index[
@@ -80,6 +83,32 @@ class Dataset(torch_data.Dataset):
         x, date_enc_x, y, date_enc_y = self.__cache[index]
         return x, date_enc_x, y, date_enc_y
 
+    def fetch(self, beg_idx, end_idx):
+        return [self.__getitem__(i) for i in range(beg_idx, end_idx)]
+
+    def to_gpu(self, device_name: str='cuda:0'):
+        NUM_OF_THREADS = 4
+        dst = torch.device(device=device_name)
+        # self.__total_samples = 4
+        step = self.__total_samples // NUM_OF_THREADS
+        final_res = []
+        with Pool(processes=NUM_OF_THREADS) as pool:
+            param_lst = []
+            for i in range(NUM_OF_THREADS):
+                beg = i * step
+                end = (i + 1) * step
+                if i == (NUM_OF_THREADS - 1):
+                    end = self.__total_samples
+                param_lst.append((beg, end))
+            for res in pool.starmap(self.fetch, param_lst):
+                final_res.extend(res)
+        x, date_x, y, date_y = tuple(zip(*final_res))
+        return TensorDataset(
+            torch.cuda.FloatTensor(np.asanyarray(x), device=dst),
+            torch.cuda.IntTensor(np.asanyarray(date_x), device=dst),
+            torch.cuda.FloatTensor(np.asanyarray(y), device=dst),
+            torch.cuda.IntTensor(np.asanyarray(date_y), device=dst))
+        
 # Load WealthLab trades
 def load_wl_trades(fname):
     int_t = lambda x:  np.NaN if x == 'Open' else int(x.replace(',', ''))
