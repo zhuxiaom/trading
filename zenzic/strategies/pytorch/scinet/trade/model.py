@@ -131,7 +131,8 @@ class SCINetTrades(pl.LightningModule):
         # optimizer = MADGRAD(self.parameters(), self.learning_rate)
         optimizer = Adam(self.parameters(), self.learning_rate)
         scheduler = ReduceLROnPlateau(
-            optimizer, mode='min', patience=self.lr_patience, cooldown=self.lr_patience)
+            optimizer, mode='min', patience=self.lr_patience,
+            cooldown=self.lr_patience, factor=0.5)
         if self.lr_patience <= 0:
             return optimizer
         else:

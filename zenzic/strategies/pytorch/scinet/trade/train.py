@@ -17,7 +17,7 @@ def main():
     # args
     # ------------
     parser = ArgumentParser()
-    parser.add_argument('--batch_size', default=64, type=int)
+    parser.add_argument('--batch_size', default=256, type=int)
     parser.add_argument('--data_file', type=str, required=True)
     parser.add_argument('--output_dir', type=str, required=True)
     parser.add_argument('--max_epochs', type=int, default=500)
@@ -29,17 +29,19 @@ def main():
     # ------------
     # data
     # ------------
+    train_data = Dataset(args.data_file, 'train', args.window_size).to_gpu()
     train_loader = DataLoader(
-        Dataset(args.data_file, 'train', args.window_size),
+        train_data,
         batch_size=args.batch_size,
-        num_workers=6,
+        num_workers=0,
         shuffle=True,
-        persistent_workers=True)
+        persistent_workers=False)
+    val_data = Dataset(args.data_file, 'val', args.window_size).to_gpu()
     val_loader = DataLoader(
-        Dataset(args.data_file, 'val', args.window_size),
+        val_data,
         batch_size=args.batch_size,
-        num_workers=2,
-        persistent_workers=True)
+        num_workers=0,
+        persistent_workers=False)
     # test_loader = DataLoader(
     #     Dataset(args.data_file, 'test', args.seq_len), batch_size=args.batch_size, num_workers=3)
 
@@ -61,15 +63,15 @@ def main():
     )
     stoch_weight_avg = StochasticWeightAveraging(swa_epoch_start=6, swa_lrs=0.01, device=None)
     early_stop_callback = EarlyStopping(
-        monitor="val_prec",
-        min_delta=1e-4,
+        monitor="val_loss",
+        min_delta=1e-3,
         patience=args.early_stopping,
         verbose=False,
-        mode="max")
+        mode="min")
     trainer = pl.Trainer(
         max_epochs=args.max_epochs,
         gpus=1,
-        weights_summary="top",
+        enable_model_summary=True,
         callbacks=[lr_logger, save_model, early_stop_callback],
         logger=logger,
         default_root_dir=args.output_dir)

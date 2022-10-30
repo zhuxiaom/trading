@@ -11,7 +11,6 @@ from collections import defaultdict
 from zenzic.data.watchlist import SP500
 from zenzic.strategies.pytorch.data.utils import load_hist_quotes
 from zenzic.thirdparty.Autoformer.utils.timefeatures import time_features
-from numba import njit
 from tqdm import tqdm
 from torch.utils.data import TensorDataset
 
@@ -89,7 +88,7 @@ class Dataset(torch_data.Dataset):
     def to_gpu(self, device_name: str='cuda:0'):
         NUM_OF_THREADS = 4
         dst = torch.device(device=device_name)
-        # self.__total_samples = 4
+        # self.__total_samples = 640
         step = self.__total_samples // NUM_OF_THREADS
         final_res = []
         with Pool(processes=NUM_OF_THREADS) as pool:
@@ -104,10 +103,10 @@ class Dataset(torch_data.Dataset):
                 final_res.extend(res)
         x, date_x, y, date_y = tuple(zip(*final_res))
         return TensorDataset(
-            torch.cuda.FloatTensor(np.asanyarray(x), device=dst),
-            torch.cuda.IntTensor(np.asanyarray(date_x), device=dst),
-            torch.cuda.FloatTensor(np.asanyarray(y), device=dst),
-            torch.cuda.IntTensor(np.asanyarray(date_y), device=dst))
+            torch.cuda.FloatTensor(np.asanyarray(x), device=dst).share_memory_(),
+            torch.cuda.FloatTensor(np.asanyarray(date_x), device=dst).share_memory_(),
+            torch.cuda.IntTensor(np.asanyarray(y), device=dst).share_memory_(),
+            torch.cuda.FloatTensor(np.asanyarray(date_y), device=dst).share_memory_())
         
 # Load WealthLab trades
 def load_wl_trades(fname):
