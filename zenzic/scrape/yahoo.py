@@ -9,7 +9,7 @@ from ratelimiter import RateLimiter
 from timeit import Timer
 from zenzic.data.stockdb import StockDB
 
-@RateLimiter(max_calls=1, period=1.8)
+@RateLimiter(max_calls=1, period=1)
 def fetchHistQuote(symbol, period='1mo', proxy=None):
     yhoo = yfinance.Ticker(symbol)
     quote = yhoo.history(period, auto_adjust=False, rounding=True, proxy=proxy)
@@ -89,20 +89,16 @@ def main(argv):
     symbols = stock_db.getStockSymbols(type="yahoo")
     # symbols = ["AZBA",] # "MLPR", "FLGV", "CEFA", "PFFV", "IBTK", "DJUL", "FJUL", "VWID", "KESG", "AUGZ"]
     # FLAGS.period = "max"
-    one_third = len(symbols) // 3
-    two_third = len(symbols) * 2 // 3
+    half = len(symbols) // 2
     try:
         start = symbols.index(FLAGS.start) if FLAGS.start else 0
     except:
         start = 0
     if FLAGS.shard == 0:
-        symbols = symbols[start:one_third] if start < one_third else symbols[0:one_third]
+        symbols = symbols[start:half] if start < half else symbols[0:half]
         start = 0
     elif FLAGS.shard == 1:
-        symbols = symbols[start:two_third] if start >= one_third and start < two_third else symbols[one_third:two_third]
-        start = 0
-    elif FLAGS.shard == 2:
-        symbols = symbols[start:] if start >= two_third else symbols[two_third:]
+        symbols = symbols[start:] if start >= half else symbols[half:]
         start = 0
     print("Retrieve historical quotes for %d symbols." % (len(symbols)))
     syncQuotes(symbols[start:], period=FLAGS.period, database=stock_db, proxy={"https": FLAGS.proxy} if FLAGS.proxy else None)
