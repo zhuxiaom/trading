@@ -132,7 +132,7 @@ class SCINetTrades(pl.LightningModule):
         optimizer = Adam(self.parameters(), self.learning_rate)
         scheduler = ReduceLROnPlateau(
             optimizer, mode='min', patience=self.lr_patience,
-            cooldown=self.lr_patience, factor=0.5)
+            cooldown=self.lr_patience / 2, factor=0.5)
         if self.lr_patience <= 0:
             return optimizer
         else:
@@ -146,7 +146,7 @@ class SCINetTrades(pl.LightningModule):
     def add_model_args(parent_parser):
         parser = ArgumentParser(parents=[parent_parser], add_help=False)
         ### -------  model settings --------------
-        parser.add_argument('--hidden_size', default=0.25, type=float, help='hidden channel of module')# H, EXPANSION RATE
+        parser.add_argument('--hidden_size', default=2, type=float, help='hidden channel of module')# H, EXPANSION RATE
         parser.add_argument('--INN', default=1, type=int, help='use INN or basic strategy')
         parser.add_argument('--kernel', default=5, type=int, help='kernel size')#k kernel size
         parser.add_argument('--dilation', default=1, type=int, help='dilation')
@@ -156,12 +156,11 @@ class SCINetTrades(pl.LightningModule):
         parser.add_argument('--levels', type=int, default=3)
         parser.add_argument('--num_decoder_layer', type=int, default=1)
         parser.add_argument('--stacks', type=int, default=1)
-        parser.add_argument('--long_term_forecast', action='store_true', default=False)
         parser.add_argument('--RIN', type=bool, default=False)
         parser.add_argument('--input_rnn_hidden_size', type=int, default=4)
         parser.add_argument('--input_rnn_layers', type=int, default=2)
         ### -------  input/output length settings --------------
-        parser.add_argument('--window_size', type=int, default=64, help='input length')
+        parser.add_argument('--window_size', type=int, default=96, help='input length')
         parser.add_argument('--input_dim', type=int, default=4, help='input length')
         parser.add_argument('--output_len', type=int, default=1, help='output length')
         parser.add_argument('--concat_len', type=int, default=165)

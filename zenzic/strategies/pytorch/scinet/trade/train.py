@@ -17,11 +17,11 @@ def main():
     # args
     # ------------
     parser = ArgumentParser()
-    parser.add_argument('--batch_size', default=256, type=int)
+    parser.add_argument('--batch_size', default=512, type=int)
     parser.add_argument('--data_file', type=str, required=True)
     parser.add_argument('--output_dir', type=str, required=True)
-    parser.add_argument('--max_epochs', type=int, default=500)
-    parser.add_argument('--early_stopping', type=int, default=10)
+    parser.add_argument('--max_epochs', type=int, default=100)
+    parser.add_argument('--early_stopping', type=int, default=40)
     parser = SCINetTrades.add_model_args(parser)
     args = parser.parse_args()
     args.early_stopping = max(args.early_stopping, 2 * args.lr_patience + 1)
