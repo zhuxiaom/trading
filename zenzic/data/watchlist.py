@@ -1,12 +1,14 @@
-import pymysql as mysql
 import pandas as pd
+
+from sqlalchemy import create_engine, text
 
 class SP500():
     db_conn = None
 
     def __init__(self):
         if SP500.db_conn is None:
-            SP500.db_conn = mysql.connect(read_default_file="~/my.cnf")
+            # SP500.db_conn = mysql.connect(read_default_file="~/my.cnf")
+            SP500.db_conn = create_engine('mysql+pymysql://127.0.0.1', connect_args={'read_default_file': '~/my.cnf'})
 
     def get_symbols(self):
         query = """
@@ -18,6 +20,7 @@ class SP500():
                           AND u_date = (SELECT MAX(u_date) FROM stock_info)
                     ORDER BY company_name
                 """
+        query = text(query)
         data = pd.read_sql(query, SP500.db_conn, index_col='company_name')
         data['avg_volume'] = data['avg_volume'].apply(lambda x: self.__covert_vol(x))
         symbols = []
