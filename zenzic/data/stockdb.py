@@ -123,7 +123,7 @@ class StockDB(object):
             print("Unexpected error: ", ex)
             raise
 
-    def updatekQuotes(self, symbol, quotes, reset=False):
+    def updateQuotes(self, symbol, quotes, reset=False):
         if quotes.shape[0] == 0:
             return
 

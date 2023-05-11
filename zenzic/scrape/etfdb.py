@@ -13,11 +13,12 @@ from pathlib import Path
 
 class EtfDb:
     def __init__(self):
-        chrome_options = webdriver.ChromeOptions()
-        prefs = {"profile.managed_default_content_settings.images": 2}
-        chrome_options.add_experimental_option("prefs", prefs)
-        chrome_options.add_extension(uBlockOrigin())
-        self.__chrome = webdriver.Chrome(options=chrome_options)
+        # chrome_options = webdriver.ChromeOptions()
+        # prefs = {"profile.managed_default_content_settings.images": 2}
+        # chrome_options.add_experimental_option("prefs", prefs)
+        # chrome_options.add_extension(uBlockOrigin())
+        # self.__chrome = webdriver.Chrome(options=chrome_options)
+        self.__chrome = webdriver.Chrome()
         self.__sym_info = {}
 
     def fetchEtfSymbols(self):

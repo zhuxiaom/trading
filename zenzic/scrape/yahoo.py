@@ -12,9 +12,10 @@ from zenzic.data.stockdb import StockDB
 @RateLimiter(max_calls=1, period=1)
 def fetchHistQuote(symbol, period='1mo', proxy=None):
     yhoo = yfinance.Ticker(symbol)
-    quote = yhoo.history(period, auto_adjust=False, rounding=True, proxy=proxy)
+    quote = yhoo.history(period, auto_adjust=False, rounding=False, proxy=proxy)
     try:
-        quote.drop(["Dividends", "Stock Splits"], axis=1, inplace=True)
+        quote.index = quote.index.tz_localize(None)
+        quote = quote[["Open", "High", "Low", "Close", "Adj Close", "Volume"]]
     except:
         pass
     return quote
@@ -34,7 +35,7 @@ def syncQuotes(symbols, period="1mo", database=StockDB(), proxy=None):
             print("%s: Yahoo doesn't return any data." % (sym))
             continue
         
-        db = database.getQuotes(sym, yahoo.index.min(), yahoo.index.max(), adjclose=False, returnfmt="pandas")
+        db = database.getQuotes(sym, yahoo.index.min(), yahoo.index.max() + pandas.to_timedelta(1, unit='D'), adjclose=False, returnfmt="pandas")
         if period != "max" and db.empty:
             max_lst.append(sym)
             continue
@@ -44,10 +45,14 @@ def syncQuotes(symbols, period="1mo", database=StockDB(), proxy=None):
         common = yahoo.index.intersection(db.index)
         diff = common
         try:
-            diff = yahoo.loc[common].compare(db.loc[common]).index
+            diff = common[~numpy.bitwise_and.reduce(numpy.isclose(yahoo.loc[common], db.loc[common]), axis=1)]
         except ValueError as e:
             # Assume all data with common index are different.
             print("%s: %s." % (sym, e))
+        except TypeError as e:
+            # Expected when either yahoo or db doesn't return any data.
+            if len(common) != 0:
+                raise
         precision = 2
         precision = yahoo[["Open", "High", "Low", "Close", "Adj Close"]].applymap(lambda x: ("%.6f" % (x)).rstrip("0")[::-1].find(".")).max().max()
         db = db.round(decimals=precision)
@@ -57,7 +62,7 @@ def syncQuotes(symbols, period="1mo", database=StockDB(), proxy=None):
 
         if period == "max":
             print("%s: resetting quotes." % (sym))
-            database.updatekQuotes(sym, yahoo, True)
+            database.updateQuotes(sym, yahoo, True)
         else:
             if db_only.shape[0] > 5:
                 # Yahoo returns less quotes. We may want to retry.
@@ -71,8 +76,8 @@ def syncQuotes(symbols, period="1mo", database=StockDB(), proxy=None):
                 max_lst.append(sym)
                 continue
 
-            db_updates = yahoo.loc[yahoo_only].append(yahoo.loc[diff])
-            database.updatekQuotes(sym, db_updates)            
+            db_updates = pandas.concat([yahoo.loc[yahoo_only], yahoo.loc[diff]])
+            database.updateQuotes(sym, db_updates)            
     
     if len(max_lst) > 0:
         syncQuotes(max_lst, period="max", database=database, proxy=proxy)
@@ -87,7 +92,7 @@ flags.DEFINE_string("start", None, "The first symbol in the shard to start with.
 def main(argv):
     stock_db = StockDB()
     symbols = stock_db.getStockSymbols(type="yahoo")
-    # symbols = ["AZBA",] # "MLPR", "FLGV", "CEFA", "PFFV", "IBTK", "DJUL", "FJUL", "VWID", "KESG", "AUGZ"]
+    # symbols = ["CLB",]
     # FLAGS.period = "max"
     half = len(symbols) // 2
     try:
