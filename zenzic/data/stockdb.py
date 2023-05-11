@@ -13,10 +13,12 @@ import pandas as pd
 import json
 from backtrader.feeds import PandasDirectData
 from datetime import date
+from sqlalchemy import create_engine
 
 class StockDB(object):
     def __init__(self):
         self.__conn = mysql.connect(read_default_file="~/my.cnf")
+        self.__sqlalchemy = create_engine('mysql+pymysql://localhost', connect_args={'read_default_file': '~/my.cnf'})
         self.__today = date.today()
 
     def getQuotes(self, symbol, fromdate=None, todate=None, adjclose=True, returnfmt=None):
@@ -37,7 +39,7 @@ class StockDB(object):
             query += " AND q_date >= '{}'".format(pd.to_datetime(fromdate).date())
         if todate:
             query += " AND q_date < '{}'".format(pd.to_datetime(todate).date())
-        quotes = pd.read_sql(query, self.__conn)
+        quotes = pd.read_sql(query, self.__sqlalchemy)
         quotes['q_date'] = pd.to_datetime(quotes['q_date'])
 
         if adjclose:
