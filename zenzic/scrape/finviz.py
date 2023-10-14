@@ -5,6 +5,7 @@ from selenium import webdriver
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.common.exceptions import NoSuchElementException
 from selenium.common.exceptions import TimeoutException
+from selenium.common.exceptions import WebDriverException
 from zenzic.data.stockdb import StockDB
 from zenzic.scrape.chromeext import uBlockOrigin
 from pathlib import Path
@@ -23,20 +24,21 @@ class FinViz:
         try:
             while True:
                 self.__chrome.get(url)
-                ticker = self.__chrome.find_element_by_class_name('fullview-ticker')
+                ticker = self.__chrome.find_element_by_class_name('quote-header_ticker-wrapper_ticker')
                 if ticker.text == symbol:
                     break
 
-            row = self.__chrome.find_element_by_css_selector('table.fullview-title > tbody > tr:nth-child(2) > td')
+            row = self.__chrome.find_element_by_css_selector('h2.quote-header_ticker-wrapper_company > a')
             stock_info["Company Name"] = row.text.strip()
 
-            rows = self.__chrome.find_elements_by_css_selector('table.fullview-title > tbody > tr > td.fullview-links > a.tab-link')
-            assert (len(rows) == 3), "Only got %s" % (len(rows))
+            rows = self.__chrome.find_elements_by_css_selector('div.quote-links > div:nth-child(1) > a.tab-link')
+            assert (len(rows) == 4), "Only got %s" % (len(rows))
             stock_info["Sector"] = rows[0].text.strip()
             stock_info["Industry"] = rows[1].text.strip()
             stock_info["Country"] = rows[2].text.strip()
+            stock_info["Exchange"] = rows[3].text.strip()
             
-            rows =  self.__chrome.find_elements_by_css_selector('[class=\'snapshot-table2\'] .table-dark-row')
+            rows =  self.__chrome.find_elements_by_css_selector('table.snapshot-table2 .table-dark-row')
             assert (len(rows) == 12), "Only got %s" % (len(rows))
             for row in rows:
                 cols = row.find_elements_by_css_selector('td')
@@ -52,6 +54,8 @@ class FinViz:
             print("Retry symbol '%s'." % (symbol))
             return self.getStockInfo(symbol)
         except NoSuchElementException:
+            return {}
+        except WebDriverException:
             return {}
 
 if __name__ == "__main__":

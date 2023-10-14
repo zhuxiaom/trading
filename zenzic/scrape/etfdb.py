@@ -22,8 +22,9 @@ class EtfDb:
         self.__sym_info = {}
 
     def fetchEtfSymbols(self):
+        self.__chrome.get('https://www.etfdb.com/')
         for ch in range(65, 91):
-            url = 'https://etfdb.com/alpha/' + chr(ch) + '/'
+            url = 'https://www.etfdb.com/alpha/' + chr(ch) + '/'
             self.__chrome.get(url)
             while True:
                 rows = self.__chrome.find_elements_by_xpath('//*[@id="etfs"]/tbody/tr')
