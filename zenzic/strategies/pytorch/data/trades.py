@@ -103,10 +103,10 @@ class Dataset(torch_data.Dataset):
                 final_res.extend(res)
         x, date_x, y, date_y = tuple(zip(*final_res))
         return TensorDataset(
-            torch.cuda.FloatTensor(np.asanyarray(x), device=dst).share_memory_(),
-            torch.cuda.FloatTensor(np.asanyarray(date_x), device=dst).share_memory_(),
-            torch.cuda.IntTensor(np.asanyarray(y), device=dst).share_memory_(),
-            torch.cuda.FloatTensor(np.asanyarray(date_y), device=dst).share_memory_())
+            torch.tensor(np.asanyarray(x), dtype=torch.float32, device=dst).share_memory_(),
+            torch.tensor(np.asanyarray(date_x), dtype=torch.float32,device=dst).share_memory_(),
+            torch.tensor(np.asanyarray(y), dtype=torch.int32, device=dst).share_memory_(),
+            torch.tensor(np.asanyarray(date_y), dtype=torch.float32, device=dst).share_memory_())
         
 # Load WealthLab trades
 def load_wl_trades(fname):

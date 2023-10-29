@@ -70,7 +70,7 @@ def main():
         mode="min")
     trainer = pl.Trainer(
         max_epochs=args.max_epochs,
-        gpus=1,
+        accelerator="gpu",
         enable_model_summary=True,
         callbacks=[lr_logger, save_model, early_stop_callback],
         logger=logger,

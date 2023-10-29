@@ -6,7 +6,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from madgrad import MADGRAD
 from torch.optim import Adam
-from torchmetrics.functional import accuracy, f1_score, precision, recall
+from torchmetrics.functional import accuracy, f1_score, precision_recall
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from zenzic.thirdparty.SCINet.models.SCINet import SCINet
 from argparse import ArgumentParser
@@ -91,7 +91,7 @@ class SCINetTrades(pl.LightningModule):
         x, _, y, _ = batch
         y_hat = self(x)
         loss = F.binary_cross_entropy(y_hat, y.to(torch.float32))
-        acc = accuracy(y_hat, y, 'binary')
+        acc = accuracy(y_hat, y)
         self.log('train_loss', loss, on_step=False, on_epoch=True)
         self.log('train_acc', acc, on_step=False, on_epoch=True)
         return loss
@@ -101,32 +101,30 @@ class SCINetTrades(pl.LightningModule):
         y_hat = self(x)
         # print(f'y_hat: {y_hat.shape}, y: {y.shape}')
         loss = F.binary_cross_entropy(y_hat, y.to(torch.float32))
-        acc = accuracy(y_hat, y, 'binary')
-        f1 = f1_score(y_hat, y, 'binary')
-        prec = precision(y_hat, y, 'binary')
-        rec = recall(y_hat, y, 'binary')
+        acc = accuracy(y_hat, y)
+        f1 = f1_score(y_hat, y)
+        prec_recall = precision_recall(y_hat, y)
         self.log_dict({
             'val_loss': loss,
             'val_acc': acc,
             'val_f1': f1,
-            'val_prec': prec,
-            'val_recall': rec
+            'val_prec': prec_recall[0],
+            'val_recall': prec_recall[1]
         })
 
     def test_step(self, batch, batch_idx):
         x, _, y, _ = batch
         y_hat = self(x)
         loss = F.binary_cross_entropy(y_hat, y.to(torch.float32))
-        acc = accuracy(y_hat, y, 'binary')
-        f1 = f1_score(y_hat, y, 'binary')
-        prec = precision(y_hat, y, 'binary')
-        rec = recall(y_hat, y, 'binary')
+        acc = accuracy(y_hat, y)
+        f1 = f1_score(y_hat, y)
+        prec_recall = precision_recall(y_hat, y)
         self.log_dict({
             'test_loss': loss,
             'test_acc': acc,
             'test_f1': f1,
-            'test_prec': prec,
-            'test_recall': rec
+            'test_prec': prec_recall[0],
+            'test_recall': prec_recall[1]
         })
 
     def configure_optimizers(self):

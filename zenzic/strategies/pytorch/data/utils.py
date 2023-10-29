@@ -28,7 +28,7 @@ def load_hist_quotes(symbols, fromdate=None, enddate=None):
         symbol = pd.DataFrame(data=[sym] * quotes.shape[0], columns=['Symbol'])
         quotes = pd.concat(objs=[symbol, quotes], axis=1)
         quotes_lst.append(quotes)
-    all_quotes = all_quotes.append(quotes_lst, ignore_index=True)
+    all_quotes = pd.concat(quotes_lst, ignore_index=True)
     all_quotes = all_quotes.sort_values(by=['Symbol', 'Date'])
     all_quotes = all_quotes.reset_index(drop=True)
     return all_quotes
