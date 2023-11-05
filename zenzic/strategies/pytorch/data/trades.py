@@ -84,10 +84,9 @@ class Dataset(torch_data.Dataset):
 
     def fetch(self, beg_idx, end_idx):
         return [self.__getitem__(i) for i in range(beg_idx, end_idx)]
-
-    def to_gpu(self, device_name: str='cuda:0'):
-        NUM_OF_THREADS = 4
-        dst = torch.device(device=device_name)
+    
+    def fetch_all(self):
+        NUM_OF_THREADS = 8
         # self.__total_samples = 640
         step = self.__total_samples // NUM_OF_THREADS
         final_res = []
@@ -102,6 +101,11 @@ class Dataset(torch_data.Dataset):
             for res in pool.starmap(self.fetch, param_lst):
                 final_res.extend(res)
         x, date_x, y, date_y = tuple(zip(*final_res))
+        return x, date_x, y, date_y
+
+    def to_gpu(self, device_name: str='cuda:0'):
+        dst = torch.device(device=device_name)
+        x, date_x, y, date_y = self.fetch_all()
         return TensorDataset(
             torch.tensor(np.asanyarray(x), dtype=torch.float32, device=dst).share_memory_(),
             torch.tensor(np.asanyarray(date_x), dtype=torch.float32,device=dst).share_memory_(),
