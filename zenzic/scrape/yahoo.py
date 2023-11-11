@@ -54,7 +54,7 @@ def syncQuotes(symbols, period="1mo", database=StockDB(), proxy=None):
             if len(common) != 0:
                 raise
         precision = 2
-        precision = yahoo[["Open", "High", "Low", "Close", "Adj Close"]].applymap(lambda x: ("%.6f" % (x)).rstrip("0")[::-1].find(".")).max().max()
+        precision = yahoo[["Open", "High", "Low", "Close", "Adj Close"]].map(lambda x: ("%.6f" % (x)).rstrip("0")[::-1].find(".")).max().max()
         db = db.round(decimals=precision)
 
         print("%s: yahoo_only = %d, db_only = %d, common = %d, diff = %d, precision = %d, from = %s, to = %s." %
