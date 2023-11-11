@@ -67,7 +67,7 @@ class StockDB(object):
             for row in cursor.fetchall():
                 if row[1] == self.__today:
                     already_updated[row[0]] = row[1]
-            cursor.execute("""SELECT s.symbol FROM symbols s LEFT JOIN etf_info e USING(sym_id) WHERE s.yhoo_sync AND e.u_date IS NULL AND s.symbol NOT LIKE '^%' ORDER BY symbol""")
+            cursor.execute("""SELECT s.symbol FROM symbols s LEFT JOIN etf_info e USING(sym_id) WHERE s.yhoo_sync AND e.u_date IS NULL AND s.symbol NOT LIKE '^%' AND exchange_id != 8 ORDER BY symbol""")
             for row in cursor.fetchall():
                 if not already_updated.get(row[0], None):
                     symbols.append(row[0])
