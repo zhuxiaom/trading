@@ -2,11 +2,11 @@ from zenzic.strategies.pytorch.PatchTST.trade.model import PatchTSTTrades
 from zenzic.strategies.pytorch.data.trades import Dataset
 from argparse import ArgumentParser
 from torch.utils.data import DataLoader
-from pytorch_lightning.loggers import TensorBoardLogger
-from pytorch_lightning.callbacks import EarlyStopping, LearningRateMonitor, ModelCheckpoint
-from pytorch_lightning.callbacks.stochastic_weight_avg import StochasticWeightAveraging
+from lightning.pytorch.loggers import TensorBoardLogger
+from lightning.pytorch.callbacks import EarlyStopping, LearningRateMonitor, ModelCheckpoint
+from lightning.pytorch.callbacks.stochastic_weight_avg import StochasticWeightAveraging
 
-import pytorch_lightning as pl
+import lightning.pytorch as pl
 import os
 
 def main():

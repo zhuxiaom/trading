@@ -29,16 +29,22 @@ class moving_avg(nn.Module):
     def __init__(self, kernel_size, stride):
         super(moving_avg, self).__init__()
         self.kernel_size = kernel_size
-        self.avg = nn.AvgPool1d(kernel_size=kernel_size, stride=stride, padding=0)
+        # self.avg = nn.AvgPool1d(kernel_size=kernel_size, stride=stride, padding=0)
 
     def forward(self, x):
         # padding on the both ends of time series
-        front = x[:, 0:1, :].repeat(1, (self.kernel_size - 1) // 2, 1)
-        end = x[:, -1:, :].repeat(1, (self.kernel_size - 1) // 2, 1)
-        x = torch.cat([front, x, end], dim=1)
-        x = self.avg(x.permute(0, 2, 1))
-        x = x.permute(0, 2, 1)
-        return x
+        # front = x[:, 0:1, :].repeat(1, (self.kernel_size - 1) // 2, 1)
+        # end = x[:, -1:, :].repeat(1, (self.kernel_size - 1) // 2, 1)
+        # x = torch.cat([front, x, end], dim=1)
+        # x = self.avg(x.permute(0, 2, 1))
+        # x = x.permute(0, 2, 1)
+        s = torch.cumsum(x, dim=1)
+        s[:, self.kernel_size:, :] = s[:, self.kernel_size:, :] - s.roll(shifts=self.kernel_size, dims=1)[:, self.kernel_size:, :]
+        n = torch.ones(x.shape, device=x.device)
+        n = torch.cumsum(n, dim=1)
+        n[:, self.kernel_size:, :] = self.kernel_size
+        avg = s/n
+        return avg
 
 
 class series_decomp(nn.Module):

@@ -15,7 +15,7 @@ from tqdm import tqdm
 from torch.utils.data import TensorDataset
 
 class Dataset(torch_data.Dataset):
-    def __init__(self, filename, type, seq_len, channel_first=False):
+    def __init__(self, filename, type, seq_len, channel_first: bool=False):
         self.__seq_len = seq_len
         self.__channel_first = channel_first
         self.__quotes = pd.read_pickle(filename)
@@ -85,19 +85,24 @@ class Dataset(torch_data.Dataset):
     def fetch(self, beg_idx, end_idx):
         return [self.__getitem__(i) for i in range(beg_idx, end_idx)]
     
-    def fetch_all(self):
+    def fetch_all(self, offset: int=0):
         NUM_OF_THREADS = 8
         # self.__total_samples = 640
-        step = self.__total_samples // NUM_OF_THREADS
         final_res = []
+        range_lb = (-offset if offset < 0 else 0)
+        range_ub = (offset if offset > 0 else self.__total_samples)
+        total = range_ub - range_lb
+        step = total // NUM_OF_THREADS
+        print(f"Fetching samples from {range_lb} to {range_ub}.")
+        beg = range_lb
         with Pool(processes=NUM_OF_THREADS) as pool:
             param_lst = []
             for i in range(NUM_OF_THREADS):
-                beg = i * step
-                end = (i + 1) * step
+                end = beg + step
                 if i == (NUM_OF_THREADS - 1):
-                    end = self.__total_samples
+                    end = range_ub
                 param_lst.append((beg, end))
+                beg = end
             for res in pool.starmap(self.fetch, param_lst):
                 final_res.extend(res)
         x, date_x, y, date_y = tuple(zip(*final_res))

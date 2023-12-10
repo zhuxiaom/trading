@@ -1,5 +1,5 @@
 import numpy as np
-import pytorch_lightning as pl
+import lightning.pytorch as pl
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -72,7 +72,7 @@ class PatchTSTTrades(pl.LightningModule):
             'val_f1': f1,
             'val_prec': prec,
             'val_recall': rec
-        })
+        }, on_epoch=True, on_step=False)
 
     def test_step(self, batch, batch_idx):
         x, _, y, _ = batch
@@ -88,7 +88,7 @@ class PatchTSTTrades(pl.LightningModule):
             'test_f1': f1,
             'test_prec': prec,
             'test_recall': rec
-        })
+        }, on_epoch=True, on_step=False)
 
     def configure_optimizers(self):
         optimizer = MADGRAD(self.parameters(), self.learning_rate)
