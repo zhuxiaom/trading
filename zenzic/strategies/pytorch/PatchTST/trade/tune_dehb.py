@@ -9,6 +9,7 @@ from lightning.pytorch.callbacks.stochastic_weight_avg import StochasticWeightAv
 from torch.utils.data import TensorDataset
 from lightning.pytorch.callbacks import Callback
 from dehb import DEHB
+from sklearn.linear_model import LinearRegression
 
 import lightning.pytorch as pl
 import os
@@ -21,12 +22,35 @@ import ConfigSpace as CS
 import ConfigSpace.hyperparameters as CSH
 
 
-class ValLoss(Callback):
+class Scorer(Callback):
     def __init__(self) -> None:
-        self.value = 1.0
+        self.values = []
+        self.score = None
+        self.min_loss = None
 
     def on_validation_epoch_end(self, trainer, pl_module):
-        self.value = min(self.value, trainer.logged_metrics['val_loss'])
+        self.values.append(trainer.logged_metrics['val_loss'])
+
+    def get_score(self):
+        if self.score:
+            return self.score
+        
+        x = np.linspace((1.0, ), (len(self.values)+1.0, ), len(self.values))
+        y = np.asarray([v.item() for v in self.values])
+        reg = LinearRegression().fit(x, y)
+        if reg.coef_[0] < 0.0:
+            self.score = np.min(y)
+        else:
+            # Penalize the overfit model.
+            self.score = np.min(y) * 2
+        return self.score
+    
+    def get_min_loss(self):
+        if self.min_loss:
+            return self.min_loss
+        
+        self.min_loss = min([v.item() for v in self.values])
+        return self.min_loss
     
 class Experiment:
     def __init__(self, config) -> None:
@@ -50,7 +74,7 @@ class Experiment:
         dropout = CSH.UniformFloatHyperparameter('dropout', lower=0.0, upper=1.0, default_value=0.0)
         head_dropout = CSH.UniformFloatHyperparameter('head_dropout', lower=0.0, upper=1.0, default_value=0.0)
         patch_len = CSH.UniformIntegerHyperparameter('patch_len', lower=1, upper=128, default_value=128)
-        e_layers = CSH.UniformIntegerHyperparameter('e_layers', lower=1, upper=3, default_value=1)
+        e_layers = CSH.UniformIntegerHyperparameter('e_layers', lower=2, upper=4, default_value=2)
         d_ff = CSH.UniformIntegerHyperparameter('d_ff', lower=1, upper=256, default_value=256)
         pred_len = CSH.UniformIntegerHyperparameter('pred_len', lower=1, upper=256, default_value=20)
         n_heads = CSH.UniformIntegerHyperparameter('n_heads', lower=1, upper=16, default_value=8)
@@ -107,9 +131,9 @@ class Experiment:
         model = PatchTSTTrades(self.__hp_params)
         logger = TensorBoardLogger(
             save_dir=self.__hp_params.output_dir, name=model.__class__.__name__)
-        logger.log_hyperparams(self.__hp_params, metrics={"min_loss": 0})
+        logger.log_hyperparams(self.__hp_params, metrics={'min_loss': 0, 'score': 0})
         lr_logger = LearningRateMonitor()  # log the learning rate
-        val_loss = ValLoss()
+        scorer = Scorer()
         # save_model = ModelCheckpoint(
         #     monitor="val_loss",
         #     dirpath=os.path.join(logger.log_dir, 'best_models'),
@@ -128,19 +152,19 @@ class Experiment:
             max_epochs=round(budget),
             accelerator="gpu",
             enable_model_summary=True,
-            callbacks=[lr_logger, early_stop_callback, val_loss],
+            callbacks=[lr_logger, early_stop_callback, scorer],
             logger=logger,
             default_root_dir=self.__hp_params.output_dir,
             num_sanity_val_steps=0)
         trainer.fit(model, train_loader, val_loader)
         cost = time.time() - start
-        logger.log_metrics(metrics={'min_loss': val_loss.value})
+        logger.log_metrics(metrics={'min_loss': scorer.get_min_loss(), 'score': scorer.get_score()})
 
         # dict representation that DEHB requires
         res = {
-            "fitness": val_loss.value,
-            "cost": cost,
-            "info": {"budget": budget}
+            'fitness': scorer.get_score(),
+            'cost': cost,
+            'info': {'budget': budget, 'loss': scorer.get_min_loss()}
         }
         return res
 
