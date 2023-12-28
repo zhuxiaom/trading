@@ -80,12 +80,18 @@ class Model(nn.Module):
         self.seq_len = configs.seq_len
         self.label_len = configs.label_len
         self.pred_len = configs.pred_len
-        self.model = nn.ModuleList([TimesBlock(configs)
-                                    for _ in range(configs.e_layers)])
+        # self.model = nn.ModuleList([TimesBlock(configs)
+        #                             for _ in range(configs.e_layers)])
+        # zxm begin
+        layers = []
+        for _ in range(configs.e_layers):
+            layers.extend([TimesBlock(configs),  nn.LayerNorm(configs.d_model)])
+        self.model = nn.Sequential(*layers)
+        # zxm end
         self.enc_embedding = DataEmbedding(configs.enc_in, configs.d_model, configs.embed, configs.freq,
                                            configs.dropout)
         self.layer = configs.e_layers
-        self.layer_norm = nn.LayerNorm(configs.d_model)
+        # self.layer_norm = nn.LayerNorm(configs.d_model)
         if self.task_name == 'long_term_forecast' or self.task_name == 'short_term_forecast':
             self.predict_linear = nn.Linear(
                 self.seq_len, self.pred_len + self.seq_len)
@@ -184,8 +190,11 @@ class Model(nn.Module):
         # embedding
         enc_out = self.enc_embedding(x_enc, None)  # [B,T,C]
         # TimesNet
-        for i in range(self.layer):
-            enc_out = self.layer_norm(self.model[i](enc_out))
+        # zxm begin
+        # for i in range(self.layer):
+        #     enc_out = self.layer_norm(self.model[i](enc_out))
+        enc_out = self.model(enc_out)
+        # zxm end
 
         # Output
         # the output transformer encoder/decoder embeddings don't include non-linearity

@@ -95,9 +95,9 @@ class TimesNetTrades(pl.LightningModule):
         parser.add_argument('--pred_len', type=int, default=0, help='Output sequence length of TimesNet block.')    # Not used
         parser.add_argument('--num_class', type=int, default=1, help='The num of classes.')
         parser.add_argument('--label_len', type=int, default=1, help='The num of labels.')  # Not used
-        parser.add_argument('--top_k', type=int, default=3, help='Top K of FFT frequencies.')
-        parser.add_argument('--d_model', type=int, default=128, help='The model dimension.')
-        parser.add_argument('--d_ff', type=int, default=128, help='The feedforward dimension.')
+        parser.add_argument('--top_k', type=int, default=5, help='Top K of FFT frequencies.')
+        parser.add_argument('--d_model', type=int, default=32, help='The model dimension.')
+        parser.add_argument('--d_ff', type=int, default=32, help='The feedforward dimension.')
         parser.add_argument('--num_kernels', type=int, default=10, help='The num of kernels in Inception block.')
         parser.add_argument('--e_layers', type=int, default=3, help='The number of TimesNet layers.')
         parser.add_argument('--dropout', type=float, default=0.0, help='The dropout ratio.')
