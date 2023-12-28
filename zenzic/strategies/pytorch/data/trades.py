@@ -108,9 +108,9 @@ class Dataset(torch_data.Dataset):
         x, date_x, y, date_y = tuple(zip(*final_res))
         return x, date_x, y, date_y
 
-    def to_gpu(self, device_name: str='cuda:0'):
+    def to_gpu(self, device_name: str='cuda:0', offset: int=0):
         dst = torch.device(device=device_name)
-        x, date_x, y, date_y = self.fetch_all()
+        x, date_x, y, date_y = self.fetch_all(offset=offset)
         return TensorDataset(
             torch.tensor(np.asanyarray(x), dtype=torch.float32, device=dst).share_memory_(),
             torch.tensor(np.asanyarray(date_x), dtype=torch.float32,device=dst).share_memory_(),
