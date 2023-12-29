@@ -32,21 +32,20 @@ class Scorer(Callback):
         self.values.append(trainer.logged_metrics['val_loss'])
 
     def get_score(self):
-        if self.score:
+        if self.score is not None:
             return self.score
         
         x = np.linspace((1.0, ), (len(self.values)+1.0, ), len(self.values))
         y = np.asarray([v.item() for v in self.values])
-        reg = LinearRegression().fit(x, y)
-        if reg.coef_[0] < 0.0:
-            self.score = np.min(y)
-        else:
-            # Penalize the overfit model.
-            self.score = np.min(y) * 2
+        reg = LinearRegression().fit(x, y)  
+        
+        # Penaliize overfit because the overfit has positive coeffiency.
+        multiplier = reg.coef_[0] + 1
+        self.score = self.score * multiplier
         return self.score
     
     def get_min_loss(self):
-        if self.min_loss:
+        if self.min_loss is not None:
             return self.min_loss
         
         self.min_loss = min([v.item() for v in self.values])
