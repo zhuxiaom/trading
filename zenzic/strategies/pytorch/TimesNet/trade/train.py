@@ -42,8 +42,8 @@ class Scorer(Callback):
         reg = LinearRegression().fit(x, y)  
         
         # Penaliize overfit because the overfit has positive coeffiency.
-        multiplier = reg.coef_[0] + 1
-        self.score = self.score * multiplier
+        multiplier = reg.coef_[0] * 100 + 1
+        self.score = self.get_min_loss() * multiplier
         return self.score
     
     def get_min_loss(self):
@@ -109,14 +109,14 @@ def main():
     # training
     # ------------
     model = TimesNetTrades(args)
-    logger = TensorBoardLogger(
-        save_dir=args.output_dir, name=model.__class__.__name__)
-    logger.log_hyperparams(args, metrics={'min_loss': 0, 'score': 0})
+    tb_logger = TensorBoardLogger(
+        save_dir=args.output_dir, name=model.__class__.__name__, default_hp_metric=False)
+    tb_logger.log_hyperparams(args, metrics={'min_loss': 0, 'score': 0})
     lr_logger = LearningRateMonitor()  # log the learning rate
     scorer = Scorer(config=args)
     save_model = ModelCheckpoint(
         monitor="val_loss",
-        dirpath=os.path.join(logger.log_dir, 'best_models'),
+        dirpath=os.path.join(tb_logger.log_dir, 'best_models'),
         filename="TimesNet-{epoch:03d}-{val_loss:.6f}",
         save_top_k=3,
         mode="min",
@@ -125,7 +125,7 @@ def main():
     stoch_weight_avg = StochasticWeightAveraging(swa_epoch_start=6, swa_lrs=0.01, device=None)
     early_stop_callback = EarlyStopping(
         monitor="val_loss",
-        min_delta=1e-3,
+        min_delta=1e-6,
         patience=args.early_stopping,
         verbose=False,
         mode="min")
@@ -137,14 +137,14 @@ def main():
         accelerator="gpu",
         enable_model_summary=True,
         callbacks=callbacks,
-        logger=logger,
+        logger=tb_logger,
         default_root_dir=args.output_dir,
         enable_checkpointing=not args.syne_tune,
         num_sanity_val_steps=0,
         enable_progress_bar=not args.syne_tune,
     )
     trainer.fit(model, train_loader, val_loader)
-    logger.log_metrics(metrics={'min_loss': scorer.get_min_loss(), 'score': scorer.get_score()})
+    tb_logger.log_metrics(metrics={'min_loss': scorer.get_min_loss(), 'score': scorer.get_score()})
 
     # ------------
     # testing

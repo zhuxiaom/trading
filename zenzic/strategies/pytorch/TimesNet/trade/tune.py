@@ -3,7 +3,7 @@ from zenzic.strategies.pytorch.TimesNet.trade.model import TimesNetTrades
 from syne_tune.optimizer.baselines import HyperTune
 from syne_tune.backend import LocalBackend
 from syne_tune import Tuner, StoppingCriterion
-from syne_tune.config_space import randint, uniform
+from syne_tune.config_space import randint, uniform, finrange
 
 import os
 import logging
@@ -30,8 +30,8 @@ def main():
         'output_dir': args.output_dir,
         'syne_tune': args.syne_tune,
         'top_k': randint(lower=1, upper=5),
-        'd_model': randint(lower=4, upper=32),
-        'd_ff': randint(lower=4, upper=32),
+        'd_model': finrange(lower=4, upper=32, size=15, cast_int=True), # Even num in [4, 32]
+        'd_ff': finrange(lower=4, upper=32, size=15, cast_int=True),    # Even num in [4, 32]
         'num_kernels': randint(lower=1, upper=10),
         'e_layers': randint(lower=1, upper=3),
         'dropout': uniform(lower=0.0, upper=1.0),
@@ -42,6 +42,7 @@ def main():
         mode='min',
         resource_attr='epoch',
         max_resource_attr='max_epochs',
+        grace_period=10,    # minimum 10 epochs for a trial
     )
     scheduler = HyperTune(
         config_space,
@@ -54,7 +55,8 @@ def main():
     print(f"Training script is '{train_script}'.")
     backend = LocalBackend(entry_point=train_script, delete_checkpoints=True)
     stop_criterion = StoppingCriterion(
-        max_num_evaluations=200,
+        max_wallclock_time=10*24*3600,   # 7 days
+        max_num_trials_finished=200,
     )
     tuner = Tuner(
         trial_backend=backend,
