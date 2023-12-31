@@ -4,9 +4,53 @@ from syne_tune.optimizer.baselines import HyperTune
 from syne_tune.backend import LocalBackend
 from syne_tune import Tuner, StoppingCriterion
 from syne_tune.config_space import randint, uniform, finrange
+from syne_tune.tuner_callback import TunerCallback
+from syne_tune.util import RegularCallback
+from syne_tune.backend.trial_status import Status
+from collections import OrderedDict
+from syne_tune.results_callback import StoreResultsCallback
 
 import os
 import logging
+import pandas as pd
+
+logger = logging.getLogger(__name__)
+
+def tunig_status_to_string(tuning_status):
+    blacklist_cols = {'input_dir', 'output_dir', 'syne_tune'}
+    num_running = tuning_status.num_trials_running
+    num_finished = tuning_status.num_trials_started - num_running
+
+    if len(tuning_status.trial_rows) > 0:
+        running_trials = OrderedDict({})
+        for trial_id, row in tuning_status.trial_rows.items():
+            if row["status"] == Status.in_progress:
+                running_trials[trial_id] = row
+        df = pd.DataFrame(running_trials.values())
+        cols = [col for col in df.columns if not col.startswith("st_") and col not in blacklist_cols]
+        res_str = df.loc[:, cols].to_string(index=False, na_rep="-") + "\n"
+    else:
+        res_str = ""
+    res_str += (
+        f"{num_running} trials running, "
+        f"{num_finished} finished ({tuning_status.num_trials_completed} until the end), "
+        f"{tuning_status.wallclock_time:.2f}s wallclock-time"
+    )
+    # f"{self.user_time:.2f}s approximated user-time"
+    cost = tuning_status.cost
+    if cost is not None and cost > 0.0:
+        res_str += f", ${cost:.2f} estimated cost"
+    res_str += "\n"
+    return res_str
+
+class SyneTuneStatus(TunerCallback):
+    def on_tuning_start(self, tuner):
+        tuner.status_printer = RegularCallback(
+            callback=lambda tuning_status: logger.info(
+                "tuning status (last metric is reported)\n" + tunig_status_to_string(tuning_status)
+            ),
+            call_seconds_frequency=tuner.print_update_interval,
+        )
 
 def main():
     logging.getLogger().setLevel(logging.INFO)
@@ -64,7 +108,7 @@ def main():
         stop_criterion=stop_criterion,
         n_workers=1,
         sleep_time=0,
-        # callbacks=[SimulatorCallback()],
+        callbacks=[StoreResultsCallback(), SyneTuneStatus()],
         tuner_name="TimesNetTrades",
         # metadata={
         #     "seed": args.random_seed,

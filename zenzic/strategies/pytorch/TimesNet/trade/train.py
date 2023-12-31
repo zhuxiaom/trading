@@ -8,7 +8,6 @@ from lightning.pytorch.callbacks.stochastic_weight_avg import StochasticWeightAv
 from torch.utils.data import TensorDataset
 from syne_tune.report import Reporter
 from lightning.pytorch.callbacks import Callback
-from sklearn.linear_model import LinearRegression
 from syne_tune.constants import ST_CHECKPOINT_DIR
 
 import lightning.pytorch as pl
@@ -17,41 +16,30 @@ import pickle
 import torch
 import numpy as np
 
-class Scorer(Callback):
+class SyneTuneReporter(Callback):
     def __init__(self, config) -> None:
         self.config = config
         self.epoch = 0
-        self.values = []
-        self.score = None
-        self.min_loss = None
+        self.losses = []
+        self.min_loss = float('inf')
         if self.config.syne_tune:
             self.reporter = Reporter(add_time=True)
 
     def on_validation_epoch_end(self, trainer, pl_module):
-        self.values.append(trainer.logged_metrics['val_loss'])
         self.epoch += 1
-        if self.config.syne_tune:
-            self.reporter(epoch=self.epoch, val_loss=trainer.logged_metrics['val_loss'].item())
-
-    def get_score(self):
-        if self.score is not None:
-            return self.score
-        
-        x = np.linspace((1.0, ), (len(self.values)+1.0, ), len(self.values))
-        y = np.asarray([v.item() for v in self.values])
-        reg = LinearRegression().fit(x, y)  
-        
-        # Penaliize overfit because the overfit has positive coeffiency.
-        multiplier = reg.coef_[0] * 100 + 1
-        self.score = self.get_min_loss() * multiplier
-        return self.score
+        self.losses.append(trainer.logged_metrics['val_loss'].item())
+        self.min_loss = min(self.min_loss, self.losses[-1])
+        # Delay reporting last value to allow the script to complete.
+        if self.epoch < self.config.max_epochs:
+            self.report()
     
-    def get_min_loss(self):
-        if self.min_loss is not None:
-            return self.min_loss
-        
-        self.min_loss = min([v.item() for v in self.values])
-        return self.min_loss
+    def report(self):
+        if self.config.syne_tune:
+            self.reporter(epoch=self.epoch, val_loss=self.losses[-1])
+
+    def finish(self):
+        if self.epoch == self.config.max_epochs:
+            self.report()
 
 def load_dataset(dir, type, device):
     path = os.path.join(dir, type + '.pkl')
@@ -111,9 +99,9 @@ def main():
     model = TimesNetTrades(args)
     tb_logger = TensorBoardLogger(
         save_dir=args.output_dir, name=model.__class__.__name__, default_hp_metric=False)
-    tb_logger.log_hyperparams(args, metrics={'min_loss': 0, 'score': 0})
+    tb_logger.log_hyperparams(args, metrics={'min_loss': 0})
     lr_logger = LearningRateMonitor()  # log the learning rate
-    scorer = Scorer(config=args)
+    st_reporter = SyneTuneReporter(config=args)
     save_model = ModelCheckpoint(
         monitor="val_loss",
         dirpath=os.path.join(tb_logger.log_dir, 'best_models'),
@@ -129,7 +117,7 @@ def main():
         patience=args.early_stopping,
         verbose=False,
         mode="min")
-    callbacks = [lr_logger, early_stop_callback, scorer]
+    callbacks = [lr_logger, early_stop_callback, st_reporter]
     if not args.syne_tune:
         callbacks.append(save_model)
     trainer = pl.Trainer(
@@ -144,13 +132,16 @@ def main():
         enable_progress_bar=not args.syne_tune,
     )
     trainer.fit(model, train_loader, val_loader)
-    tb_logger.log_metrics(metrics={'min_loss': scorer.get_min_loss(), 'score': scorer.get_score()})
+    tb_logger.log_metrics(metrics={'min_loss': st_reporter.min_loss})
 
     # ------------
     # testing
     # ------------
     # result = trainer.test(test_dataloaders=test_loader)
     # print(result)
+	
+    st_reporter.finish()
+	
 
 if __name__ == '__main__':
     main()
