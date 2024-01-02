@@ -9,6 +9,7 @@ from syne_tune.util import RegularCallback
 from syne_tune.backend.trial_status import Status
 from collections import OrderedDict
 from syne_tune.results_callback import StoreResultsCallback
+from datetime import timedelta
 
 import os
 import logging
@@ -17,7 +18,7 @@ import pandas as pd
 logger = logging.getLogger(__name__)
 
 def tunig_status_to_string(tuning_status):
-    blacklist_cols = {'input_dir', 'output_dir', 'syne_tune'}
+    blacklist_cols = {'input_dir', 'output_dir', 'syne_tune', 'lr_patience'}
     num_running = tuning_status.num_trials_running
     num_finished = tuning_status.num_trials_started - num_running
 
@@ -34,7 +35,7 @@ def tunig_status_to_string(tuning_status):
     res_str += (
         f"{num_running} trials running, "
         f"{num_finished} finished ({tuning_status.num_trials_completed} until the end), "
-        f"{tuning_status.wallclock_time:.2f}s wallclock-time"
+        f"{timedelta(seconds=tuning_status.wallclock_time)} elapsed."
     )
     # f"{self.user_time:.2f}s approximated user-time"
     cost = tuning_status.cost
@@ -73,6 +74,9 @@ def main():
         'input_dir': args.input_dir,
         'output_dir': args.output_dir,
         'syne_tune': args.syne_tune,
+        'lr_patience': 0,
+        'seq_len': randint(lower=20, upper=256),
+        'enc_in': randint(lower=1, upper=4),
         'top_k': randint(lower=1, upper=5),
         'd_model': finrange(lower=4, upper=32, size=15, cast_int=True), # Even num in [4, 32]
         'd_ff': finrange(lower=4, upper=32, size=15, cast_int=True),    # Even num in [4, 32]
