@@ -14,6 +14,7 @@ from argparse import ArgumentParser
 class TimesNetTrades(pl.LightningModule):
     def __init__(self, configs):
         super().__init__()
+        self.save_hyperparameters()
 
         self.configs = configs
 

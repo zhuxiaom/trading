@@ -14,11 +14,12 @@ from datetime import timedelta
 import os
 import logging
 import pandas as pd
+import time
 
 logger = logging.getLogger(__name__)
 
 def tunig_status_to_string(tuning_status):
-    blacklist_cols = {'input_dir', 'output_dir', 'syne_tune', 'lr_patience'}
+    blacklist_cols = {'input_dir', 'output_dir', 'lr_patience'}
     num_running = tuning_status.num_trials_running
     num_finished = tuning_status.num_trials_started - num_running
 
@@ -65,7 +66,6 @@ def main():
     parser.add_argument('--output_dir', type=str, required=True)
     parser.add_argument('--max_epochs', type=int, default=100)
     parser.add_argument('--early_stopping', type=int, default=10)
-    parser.add_argument('--syne_tune', type=bool, default=True)
     parser = TimesNetTrades.add_model_args(parser)
     args = parser.parse_args()
 
@@ -73,7 +73,6 @@ def main():
         'max_epochs': args.max_epochs,
         'input_dir': args.input_dir,
         'output_dir': args.output_dir,
-        'syne_tune': args.syne_tune,
         'lr_patience': 0,
         'seq_len': randint(lower=20, upper=256),
         'enc_in': randint(lower=1, upper=4),
@@ -91,6 +90,7 @@ def main():
         resource_attr='epoch',
         max_resource_attr='max_epochs',
         grace_period=10,    # minimum 10 epochs for a trial
+        random_seed=int(time.time()),
     )
     scheduler = HyperTune(
         config_space,
@@ -103,7 +103,7 @@ def main():
     print(f"Training script is '{train_script}'.")
     backend = LocalBackend(entry_point=train_script, delete_checkpoints=True)
     stop_criterion = StoppingCriterion(
-        max_wallclock_time=10*24*3600,   # 7 days
+        max_wallclock_time=7*24*3600,   # 7 days
         max_num_trials_finished=200,
     )
     tuner = Tuner(

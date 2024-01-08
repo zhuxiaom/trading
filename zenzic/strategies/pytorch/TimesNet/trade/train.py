@@ -8,38 +8,54 @@ from lightning.pytorch.callbacks.stochastic_weight_avg import StochasticWeightAv
 from torch.utils.data import TensorDataset
 from syne_tune.report import Reporter
 from lightning.pytorch.callbacks import Callback
-from syne_tune.constants import ST_CHECKPOINT_DIR
+from syne_tune.constants import ST_CHECKPOINT_DIR, ST_WORKER_ITER, ST_WORKER_TIME
 
 import lightning.pytorch as pl
 import os
 import pickle
 import torch
 import numpy as np
+import ast
+import time
+
+__CHECKPOINT_FILE__ = 'last.chkp'
 
 class SyneTuneReporter(Callback):
-    def __init__(self, config) -> None:
-        self.config = config
-        self.epoch = 0
+    def __init__(self, trial_root: str) -> None:
         self.losses = []
         self.min_loss = float('inf')
-        if self.config.syne_tune:
-            self.reporter = Reporter(add_time=True)
+        self.reporter = Reporter(add_time=True)
+        self.trial_root = trial_root
+        if self.trial_root is not None:
+            # Try to recover from checkpoint.
+            std_out = os.path.join(self.trial_root, 'std.out')
+            if os.path.isfile(std_out):
+                with open(std_out, 'r') as file:
+                    max_worker_time = 0
+                    for line in file:
+                        if line.startswith('[tune-metric]:'):
+                            metrics_line = line.replace('[tune-metric]:', '').strip()
+                            metrics = ast.literal_eval(metrics_line)
+                            self.reporter.iter = metrics[ST_WORKER_ITER] + 1
+                            max_worker_time = max(max_worker_time, metrics[ST_WORKER_TIME])
+                            self.losses.append(metrics['val_loss'])
+                            self.min_loss = min(self.min_loss, self.losses[-1])
+                    self.reporter.start -= max_worker_time
 
     def on_validation_epoch_end(self, trainer, pl_module):
-        self.epoch += 1
         self.losses.append(trainer.logged_metrics['val_loss'].item())
         self.min_loss = min(self.min_loss, self.losses[-1])
+        epoch = trainer.current_epoch + 1   # current_epoch is updated after validation ends.
         # Delay reporting last value to allow the script to complete.
-        if self.epoch < self.config.max_epochs:
-            self.report()
+        if self.trial_root is not None and epoch < trainer.max_epochs:
+            self.report(epoch)
     
-    def report(self):
-        if self.config.syne_tune:
-            self.reporter(epoch=self.epoch, val_loss=self.losses[-1])
+    def report(self, epoch):
+        self.reporter(epoch=epoch, val_loss=self.losses[-1])
 
-    def finish(self):
-        if self.epoch == self.config.max_epochs:
-            self.report()
+    def finish(self, trainer):
+        if self.trial_root is not None and trainer.current_epoch == trainer.max_epochs:
+            self.report(trainer.current_epoch)
 
 def load_dataset(dir, type, device):
     path = os.path.join(dir, type + '.pkl')
@@ -54,10 +70,16 @@ def load_dataset(dir, type, device):
             torch.tensor(np.asanyarray(y), dtype=torch.int32, device=dst).share_memory_(),
             torch.tensor(np.asanyarray(date_y), dtype=torch.float32, device=dst).share_memory_())
 
+def find_st_trial(st_checkpoit_dir: str):
+    # e.g. C:\Trading\TimesNet\2023-12-27\TimesNetTrades-2024-01-01-18-17-39-789\0\checkpoints
+    head, tail = os.path.split(st_checkpoit_dir)
+    if tail == "checkpoints":
+        head, tail = os.path.split(head)
+        return head, tail
+    else:
+        return find_st_trial(head)
 
 def main():
-    pl.seed_everything(1688)
-
     # ------------
     # args
     # ------------
@@ -67,12 +89,20 @@ def main():
     parser.add_argument('--output_dir', type=str, required=True)
     parser.add_argument('--max_epochs', type=int, default=100)
     parser.add_argument('--early_stopping', type=int, default=10)
-    parser.add_argument('--syne_tune', type=bool, default=False)
     # Syne Tune args
-    parser.add_argument(f'--{ST_CHECKPOINT_DIR}', type=str, default="./")
+    parser.add_argument(f'--{ST_CHECKPOINT_DIR}', type=str, default=None)
     parser = TimesNetTrades.add_model_args(parser)
     args = parser.parse_args()
     # args.early_stopping = max(args.early_stopping, 2 * args.lr_patience + 1)
+
+    checkpoint_dir = getattr(args, ST_CHECKPOINT_DIR)
+    syne_tune_enabled = checkpoint_dir is not None
+    checkpoint_file = os.path.join(checkpoint_dir, __CHECKPOINT_FILE__)
+    checkpoint_exists = os.path.isfile(checkpoint_file)
+    trial_root, trial_id = None, None
+    if syne_tune_enabled:
+        trial_root, trial_id = find_st_trial(checkpoint_dir)
+        args.output_dir = trial_root
 
     # ------------
     # data
@@ -96,12 +126,21 @@ def main():
     # ------------
     # training
     # ------------
-    model = TimesNetTrades(args)
+    if checkpoint_exists:
+        pl.seed_everything(int(time.time()))
+        model = TimesNetTrades.load_from_checkpoint(checkpoint_file, configs=args)
+    else:
+        pl.seed_everything(1688)
+        model = TimesNetTrades(args)
     tb_logger = TensorBoardLogger(
-        save_dir=args.output_dir, name=model.__class__.__name__, default_hp_metric=False)
+        save_dir=args.output_dir,
+        name=("" if syne_tune_enabled else model.__class__.__name__),
+        version=trial_id,
+        default_hp_metric=False,
+    )
     tb_logger.log_hyperparams(args, metrics={'min_loss': 0})
     lr_logger = LearningRateMonitor()  # log the learning rate
-    st_reporter = SyneTuneReporter(config=args)
+    st_reporter = SyneTuneReporter(os.path.join(trial_root, trial_id))
     save_model = ModelCheckpoint(
         monitor="val_loss",
         dirpath=os.path.join(tb_logger.log_dir, 'best_models'),
@@ -118,7 +157,7 @@ def main():
         verbose=False,
         mode="min")
     callbacks = [lr_logger, early_stop_callback, st_reporter]
-    if not args.syne_tune:
+    if not syne_tune_enabled:
         callbacks.append(save_model)
     trainer = pl.Trainer(
         max_epochs=args.max_epochs,
@@ -127,12 +166,16 @@ def main():
         callbacks=callbacks,
         logger=tb_logger,
         default_root_dir=args.output_dir,
-        enable_checkpointing=not args.syne_tune,
+        enable_checkpointing=not syne_tune_enabled,
         num_sanity_val_steps=0,
-        enable_progress_bar=not args.syne_tune,
+        enable_progress_bar=not syne_tune_enabled,
     )
-    trainer.fit(model, train_loader, val_loader)
+    if not checkpoint_exists:
+        trainer.fit(model, train_loader, val_loader)
+    else:
+        trainer.fit(model, train_loader, val_loader, ckpt_path=checkpoint_file)
     tb_logger.log_metrics(metrics={'min_loss': st_reporter.min_loss})
+    trainer.save_checkpoint(checkpoint_file)
 
     # ------------
     # testing
@@ -140,8 +183,8 @@ def main():
     # result = trainer.test(test_dataloaders=test_loader)
     # print(result)
 	
-    st_reporter.finish()
-	
+    if syne_tune_enabled:
+        st_reporter.finish(trainer)
 
 if __name__ == '__main__':
     main()
