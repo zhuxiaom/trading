@@ -112,6 +112,7 @@ class TimesNetTrades(pl.LightningModule):
         parser.add_argument('--enc_in', type=int, default=3, help='Encoder input dimension.')
         parser.add_argument('--embed', type=str, default='fixed', help='The position embedding strategy.')
         parser.add_argument('--freq', type=str, default='h', help='The position embedding strategy.')
+        parser.add_argument('--norm_mode', type=int, default=0, help='If 0, use nn.LayerNorm; if 1, use RevIN but norm only; if 2, use RevIN norm and denorm.')
 
         ### -------  optimizer settings --------------
         parser.add_argument('--learning_rate', type=float,default=1e-4)

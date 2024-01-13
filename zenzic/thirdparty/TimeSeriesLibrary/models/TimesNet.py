@@ -32,8 +32,23 @@ class TimesBlock(nn.Module):
             Inception_Block_V1(configs.d_ff, configs.d_model,
                                num_kernels=configs.num_kernels)
         )
+        # zxm begin
+        self.norm_mode = configs.norm_mode
+        self.norm = None
+        if self.norm_mode == 0:
+            self.norm = nn.LayerNorm(configs.d_model)
+        elif self.norm_mode == 1 or self.norm_mode == 2:
+            from RevIN import RevIN
+            self.norm = RevIN(configs.d_model)
+        # zxm end
 
     def forward(self, x):
+        # zxm begin
+        if self.norm_mode == 0:
+            x = self.norm(x)
+        elif self.norm_mode == 1 or self.norm_mode == 2:
+            x = self.norm(x, 'norm')
+        # zxm end
         B, T, N = x.size()
         period_list, period_weight = FFT_for_Period(x, self.k)
 
@@ -65,6 +80,10 @@ class TimesBlock(nn.Module):
         res = torch.sum(res * period_weight, -1)
         # residual connection
         res = res + x
+         # zxm begin
+        if self.norm_mode == 2:
+            res = self.norm(res, 'denorm')
+        # zxm end
         return res
 
 
@@ -84,8 +103,12 @@ class Model(nn.Module):
         #                             for _ in range(configs.e_layers)])
         # zxm begin
         layers = []
-        for _ in range(configs.e_layers):
-            layers.extend([TimesBlock(configs),  nn.LayerNorm(configs.d_model)])
+        if configs.norm_mode < 3:
+            norm_mode = configs.norm_mode
+            configs.norm_mode = 3   # disable norm for the first layer.
+            layers.append(TimesBlock(configs))
+            configs.norm_mode = norm_mode
+            layers.extend([TimesBlock(configs) for _ in range(configs.e_layers - 1)])
         self.model = nn.Sequential(*layers)
         # zxm end
         self.enc_embedding = DataEmbedding(configs.enc_in, configs.d_model, configs.embed, configs.freq,

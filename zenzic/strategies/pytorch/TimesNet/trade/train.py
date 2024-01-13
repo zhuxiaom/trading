@@ -22,10 +22,15 @@ __CHECKPOINT_FILE__ = 'last.chkp'
 
 class SyneTuneReporter(Callback):
     def __init__(self, trial_root: str) -> None:
+        self.precisions = []
+        self.max_prec = float('-inf')
+        self.f1s = []
+        self.max_f1 = float('-inf')
         self.losses = []
         self.min_loss = float('inf')
         self.reporter = Reporter(add_time=True)
         self.trial_root = trial_root
+        self.score = float('inf')
         if self.trial_root is not None:
             # Try to recover from checkpoint.
             std_out = os.path.join(self.trial_root, 'std.out')
@@ -39,19 +44,32 @@ class SyneTuneReporter(Callback):
                             self.reporter.iter = metrics[ST_WORKER_ITER] + 1
                             max_worker_time = max(max_worker_time, metrics[ST_WORKER_TIME])
                             self.losses.append(metrics['val_loss'])
+                            self.precisions.append(metrics['val_prec'])
+                            self.f1s.append(metrics['val_f1'])
                             self.min_loss = min(self.min_loss, self.losses[-1])
                     self.reporter.start -= max_worker_time
 
     def on_validation_epoch_end(self, trainer, pl_module):
+        self.precisions.append(trainer.logged_metrics['val_prec'].item())
+        self.max_prec = max(self.precisions)
+        self.f1s.append(trainer.logged_metrics['val_f1'].item())
+        self.max_f1 = max(self.f1s)
         self.losses.append(trainer.logged_metrics['val_loss'].item())
-        self.min_loss = min(self.min_loss, self.losses[-1])
+        self.min_loss = min(self.losses)
+        losses = np.array(self.losses)
+        min_idx = np.argmin(losses)
+        self.score = (np.mean(losses[min_idx:]) / losses[min_idx] - 1) * 100
         epoch = trainer.current_epoch + 1   # current_epoch is updated after validation ends.
         # Delay reporting last value to allow the script to complete.
         if self.trial_root is not None and epoch < trainer.max_epochs:
             self.report(epoch)
     
     def report(self, epoch):
-        self.reporter(epoch=epoch, val_loss=self.losses[-1])
+        self.reporter(epoch=epoch,
+                      score=self.score,
+                      val_loss=self.losses[-1],
+                      val_prec=self.precisions[-1],
+                      val_f1=self.f1s[-1])
 
     def finish(self, trainer):
         if self.trial_root is not None and trainer.current_epoch == trainer.max_epochs:
@@ -84,7 +102,7 @@ def main():
     # args
     # ------------
     parser = ArgumentParser()
-    parser.add_argument('--batch_size', default=64, type=int)
+    parser.add_argument('--batch_size', default=256, type=int)
     parser.add_argument('--input_dir', type=str, required=True)
     parser.add_argument('--output_dir', type=str, required=True)
     parser.add_argument('--max_epochs', type=int, default=100)
@@ -97,8 +115,8 @@ def main():
 
     checkpoint_dir = getattr(args, ST_CHECKPOINT_DIR)
     syne_tune_enabled = checkpoint_dir is not None
-    checkpoint_file = os.path.join(checkpoint_dir, __CHECKPOINT_FILE__)
-    checkpoint_exists = os.path.isfile(checkpoint_file)
+    checkpoint_file = (os.path.join(checkpoint_dir, __CHECKPOINT_FILE__) if syne_tune_enabled else None)
+    checkpoint_exists = (os.path.isfile(checkpoint_file) if syne_tune_enabled else False)
     trial_root, trial_id = None, None
     if syne_tune_enabled:
         trial_root, trial_id = find_st_trial(checkpoint_dir)
@@ -138,9 +156,13 @@ def main():
         version=trial_id,
         default_hp_metric=False,
     )
-    tb_logger.log_hyperparams(args, metrics={'min_loss': 0})
+    tb_logger.log_hyperparams(args, metrics={'min_loss': 0,
+                                             'max_prec': 0,
+                                             'score': 0,
+                                             'max_f1': 0})
     lr_logger = LearningRateMonitor()  # log the learning rate
-    st_reporter = SyneTuneReporter(os.path.join(trial_root, trial_id))
+    st_reporter = SyneTuneReporter(
+        (os.path.join(trial_root, trial_id) if syne_tune_enabled else None))
     save_model = ModelCheckpoint(
         monitor="val_loss",
         dirpath=os.path.join(tb_logger.log_dir, 'best_models'),
@@ -174,8 +196,12 @@ def main():
         trainer.fit(model, train_loader, val_loader)
     else:
         trainer.fit(model, train_loader, val_loader, ckpt_path=checkpoint_file)
-    tb_logger.log_metrics(metrics={'min_loss': st_reporter.min_loss})
-    trainer.save_checkpoint(checkpoint_file)
+    tb_logger.log_metrics(metrics={'min_loss': st_reporter.min_loss,
+                                   'max_prec': st_reporter.max_prec,
+                                   'max_f1': st_reporter.max_f1,
+                                   'score': st_reporter.score})
+    if syne_tune_enabled:
+        trainer.save_checkpoint(checkpoint_file)
 
     # ------------
     # testing

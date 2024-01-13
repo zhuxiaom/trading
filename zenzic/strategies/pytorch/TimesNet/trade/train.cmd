@@ -1,3 +1,3 @@
-set PYTHONPATH=C:\Users\xzhu\Documents\GitHub\trading\;C:\Users\xzhu\Documents\GitHub\trading\zenzic\thirdparty\TimeSeriesLibrary
+set PYTHONPATH=C:\Users\xzhu\Documents\GitHub\trading\;C:\Users\xzhu\Documents\GitHub\trading\zenzic\thirdparty\TimeSeriesLibrary;C:\Users\xzhu\Documents\GitHub\trading\zenzic\thirdparty\RevIN
 
-python -u train.py --input_dir C:\Trading\CCI-RSI\2023-10-29 --output_dir C:\Trading\TimesNet\2023-12-27
+python -u train.py --input_dir C:\Trading\CCI-RSI\2023-10-29 --output_dir C:\Trading\TimesNet\2023-12-27 --lr_patience 0 --seq_len 205 --enc_in 2 --top_k 4 --d_model 14 --d_ff 20 --num_kernels 2 --e_layers 3 --dropout 0.7697677291450168 --norm_mode 2

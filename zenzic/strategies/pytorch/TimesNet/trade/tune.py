@@ -61,7 +61,7 @@ def main():
     # args
     # ------------
     parser = ArgumentParser()
-    parser.add_argument('--batch_size', default=64, type=int)
+    parser.add_argument('--batch_size', default=256, type=int)
     parser.add_argument('--input_dir', type=str, required=True)
     parser.add_argument('--output_dir', type=str, required=True)
     parser.add_argument('--max_epochs', type=int, default=100)
@@ -74,14 +74,15 @@ def main():
         'input_dir': args.input_dir,
         'output_dir': args.output_dir,
         'lr_patience': 0,
-        'seq_len': randint(lower=20, upper=256),
+        'norm_mode': 2,
+        'seq_len': randint(lower=128, upper=256),
         'enc_in': randint(lower=1, upper=4),
         'top_k': randint(lower=1, upper=5),
         'd_model': finrange(lower=4, upper=32, size=15, cast_int=True), # Even num in [4, 32]
         'd_ff': finrange(lower=4, upper=32, size=15, cast_int=True),    # Even num in [4, 32]
         'num_kernels': randint(lower=1, upper=10),
-        'e_layers': randint(lower=1, upper=3),
-        'dropout': uniform(lower=0.0, upper=1.0),
+        'e_layers': randint(lower=2, upper=4),
+        'dropout': uniform(lower=0.0, upper=0.95),
     }
     
     method_kwargs = dict(

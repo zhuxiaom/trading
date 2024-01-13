@@ -1,4 +1,4 @@
-set PYTHONPATH=C:\Users\xzhu\Documents\GitHub\trading\;C:\Users\xzhu\Documents\GitHub\trading\zenzic\thirdparty\TimeSeriesLibrary
+set PYTHONPATH=C:\Users\xzhu\Documents\GitHub\trading\;C:\Users\xzhu\Documents\GitHub\trading\zenzic\thirdparty\TimeSeriesLibrary;C:\Users\xzhu\Documents\GitHub\trading\zenzic\thirdparty\RevIN
 
 set SYNETUNE_FOLDER=C:\Trading\TimesNet\2023-12-27
 
