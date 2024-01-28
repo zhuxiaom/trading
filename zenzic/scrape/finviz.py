@@ -8,7 +8,6 @@ from selenium.common.exceptions import TimeoutException
 from selenium.common.exceptions import WebDriverException
 from zenzic.data.stockdb import StockDB
 from zenzic.scrape.chromeext import uBlockOrigin
-from pathlib import Path
 
 class FinViz:
     def __init__(self):
@@ -57,6 +56,10 @@ class FinViz:
             return {}
         except WebDriverException:
             return {}
+        
+    def close(self):
+        self.__chrome.close()
+        self.__chrome.quit()
 
 if __name__ == "__main__":
     finviz = FinViz()
@@ -66,6 +69,11 @@ if __name__ == "__main__":
     cnt = 0
     for symbol in symbols:
         cnt += 1
+        if cnt % 100 == 0:
+            # Reset Chrome to mitigate out of memory issue.
+            finviz.close()
+            del finviz
+            finviz = FinViz()
         stock_info = finviz.getStockInfo(symbol)
         print("Updating %s information with %d keys. %d more symbols to be updated." % (symbol, len(stock_info), total - cnt))
         stock_db.updateStockInfo(symbol, stock_info)
