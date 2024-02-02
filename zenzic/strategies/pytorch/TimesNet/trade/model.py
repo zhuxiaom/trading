@@ -109,10 +109,11 @@ class TimesNetTrades(pl.LightningModule):
         parser.add_argument('--num_kernels', type=int, default=10, help='The num of kernels in Inception block.')
         parser.add_argument('--e_layers', type=int, default=3, help='The number of TimesNet layers.')
         parser.add_argument('--dropout', type=float, default=0.0, help='The dropout ratio.')
-        parser.add_argument('--enc_in', type=int, default=3, help='Encoder input dimension.')
+        parser.add_argument('--enc_in', type=int, default=4, help='Encoder input dimension.')
         parser.add_argument('--embed', type=str, default='fixed', help='The position embedding strategy.')
         parser.add_argument('--freq', type=str, default='h', help='The position embedding strategy.')
         parser.add_argument('--norm_mode', type=int, default=0, help='If 0, use nn.LayerNorm; if 1, use RevIN but norm only; if 2, use RevIN norm and denorm.')
+        parser.add_argument('--act_func', type=str, default='tanh', help='Activation function (either tanh or gelu).')
 
         ### -------  optimizer settings --------------
         parser.add_argument('--learning_rate', type=float,default=1e-4)

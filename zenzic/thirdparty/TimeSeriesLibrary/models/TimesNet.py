@@ -24,11 +24,12 @@ class TimesBlock(nn.Module):
         self.seq_len = configs.seq_len
         self.pred_len = configs.pred_len
         self.k = configs.top_k
+        self.act_func = configs.act_func    # zxm
         # parameter-efficient design
         self.conv = nn.Sequential(
             Inception_Block_V1(configs.d_model, configs.d_ff,
                                num_kernels=configs.num_kernels),
-            nn.GELU(),
+            nn.GELU() if self.act_func == 'tanh' else nn.GELU(),    # zxm
             Inception_Block_V1(configs.d_ff, configs.d_model,
                                num_kernels=configs.num_kernels)
         )
@@ -216,7 +217,10 @@ class Model(nn.Module):
         # zxm begin
         # for i in range(self.layer):
         #     enc_out = self.layer_norm(self.model[i](enc_out))
-        enc_out = self.model(enc_out)
+        if self.act_func == 'tanh':
+            enc_out = (self.model(enc_out) + 1) / 2
+        else:
+            enc_out = self.model(enc_out)
         # zxm end
 
         # Output

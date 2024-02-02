@@ -74,15 +74,14 @@ def main():
         'input_dir': args.input_dir,
         'output_dir': args.output_dir,
         'lr_patience': 0,
-        'norm_mode': 2,
+        'norm_mode': 1,
         'seq_len': randint(lower=128, upper=256),
-        'enc_in': randint(lower=1, upper=4),
-        'top_k': randint(lower=1, upper=5),
-        'd_model': finrange(lower=4, upper=32, size=15, cast_int=True), # Even num in [4, 32]
-        'd_ff': finrange(lower=4, upper=32, size=15, cast_int=True),    # Even num in [4, 32]
-        'num_kernels': randint(lower=1, upper=10),
-        'e_layers': randint(lower=2, upper=4),
-        'dropout': uniform(lower=0.0, upper=0.95),
+        'top_k': 1,
+        'd_model': finrange(lower=4, upper=64, size=31, cast_int=True), # Even num in [4, 64]
+        'd_ff': finrange(lower=4, upper=64, size=31, cast_int=True), # Even num in [4, 64]
+        'num_kernels': finrange(lower=4, upper=10, size=4, cast_int=True), # Even num in [4, 10]
+        'e_layers': finrange(lower=4, upper=10, size=4, cast_int=True), # Even num in [4, 10]
+        'dropout': uniform(lower=0.0, upper=0.5),
     }
     
     method_kwargs = dict(

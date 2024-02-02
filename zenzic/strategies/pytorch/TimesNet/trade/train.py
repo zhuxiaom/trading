@@ -17,8 +17,10 @@ import torch
 import numpy as np
 import ast
 import time
+import random
 
 __CHECKPOINT_FILE__ = 'last.chkp'
+__RNG_STATES_FILE__ = 'rng_states.chkp'
 
 class SyneTuneReporter(Callback):
     def __init__(self, trial_root: str) -> None:
@@ -102,11 +104,12 @@ def main():
     # args
     # ------------
     parser = ArgumentParser()
-    parser.add_argument('--batch_size', default=256, type=int)
+    parser.add_argument('--batch_size', default=1024, type=int)
     parser.add_argument('--input_dir', type=str, required=True)
     parser.add_argument('--output_dir', type=str, required=True)
     parser.add_argument('--max_epochs', type=int, default=100)
     parser.add_argument('--early_stopping', type=int, default=10)
+    parser.add_argument('--rand_seed', type=int, default=1688)
     # Syne Tune args
     parser.add_argument(f'--{ST_CHECKPOINT_DIR}', type=str, default=None)
     parser = TimesNetTrades.add_model_args(parser)
@@ -116,6 +119,7 @@ def main():
     checkpoint_dir = getattr(args, ST_CHECKPOINT_DIR)
     syne_tune_enabled = checkpoint_dir is not None
     checkpoint_file = (os.path.join(checkpoint_dir, __CHECKPOINT_FILE__) if syne_tune_enabled else None)
+    rng_states_file = (os.path.join(checkpoint_dir, __RNG_STATES_FILE__) if syne_tune_enabled else None)
     checkpoint_exists = (os.path.isfile(checkpoint_file) if syne_tune_enabled else False)
     trial_root, trial_id = None, None
     if syne_tune_enabled:
@@ -144,11 +148,10 @@ def main():
     # ------------
     # training
     # ------------
+    pl.seed_everything(args.rand_seed)
     if checkpoint_exists:
-        pl.seed_everything(int(time.time()))
         model = TimesNetTrades.load_from_checkpoint(checkpoint_file, configs=args)
     else:
-        pl.seed_everything(1688)
         model = TimesNetTrades(args)
     tb_logger = TensorBoardLogger(
         save_dir=args.output_dir,
@@ -195,6 +198,11 @@ def main():
     if not checkpoint_exists:
         trainer.fit(model, train_loader, val_loader)
     else:
+        rng_states = torch.load(rng_states_file)
+        torch.set_rng_state(rng_states['cpu_rng_state'])
+        torch.cuda.set_rng_state(rng_states['gpu_rng_state'])
+        np.random.set_state(rng_states['numpy_rng_state'])
+        random.setstate(rng_states['py_rng_state'])
         trainer.fit(model, train_loader, val_loader, ckpt_path=checkpoint_file)
     tb_logger.log_metrics(metrics={'min_loss': st_reporter.min_loss,
                                    'max_prec': st_reporter.max_prec,
@@ -202,6 +210,13 @@ def main():
                                    'score': st_reporter.score})
     if syne_tune_enabled:
         trainer.save_checkpoint(checkpoint_file)
+        rng_states = {
+            'cpu_rng_state': torch.get_rng_state(),
+            'gpu_rng_state': torch.cuda.get_rng_state(),
+            'numpy_rng_state': np.random.get_state(),
+            'py_rng_state': random.getstate()
+        }
+        torch.save(rng_states, rng_states_file)
 
     # ------------
     # testing
