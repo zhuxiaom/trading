@@ -38,7 +38,7 @@ class FinViz:
             stock_info["Exchange"] = rows[3].text.strip()
             
             rows =  self.__chrome.find_elements_by_css_selector('table.snapshot-table2 .table-dark-row')
-            assert (len(rows) == 12), "Only got %s" % (len(rows))
+            assert (len(rows) in (12, 13)), "Only got %s" % (len(rows))
             for row in rows:
                 cols = row.find_elements_by_css_selector('td')
                 assert (len(cols) == 12), "Only got %s" % (len(cols))
