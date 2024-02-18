@@ -27,7 +27,8 @@ class FinViz:
                 if ticker.text == symbol:
                     break
 
-            row = self.__chrome.find_element_by_css_selector('h2.quote-header_ticker-wrapper_company > a')
+            row = self.__chrome.find_element_by_css_selector('h2[class^="quote-header_ticker-wrapper_company"] > a')
+            assert(row.text.strip()), "Can't find company name!"
             stock_info["Company Name"] = row.text.strip()
 
             rows = self.__chrome.find_elements_by_css_selector('div.quote-links > div:nth-child(1) > a.tab-link')
