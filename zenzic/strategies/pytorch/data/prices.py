@@ -134,17 +134,21 @@ class Dataset(torch_data.Dataset):
         data = self.__all_quotes.iloc[row:(row + self.__seq_len + self.__pred_len)][price_cols + [date_enc_col]]
         num_of_rows = data.shape[0]
         data = data.join(self.__sp500_quotes, how='inner').copy()
-        price_cols.extend(self.__sp500_quotes.columns)
+        price_cols.extend(['^GSPC:open', '^GSPC:high', '^GSPC:low', '^GSPC:close'])
         # print("Price colums: {}".format(price_cols))
         assert(num_of_rows == data.shape[0]), "Num of rows doesn't match! {} v.s. {} on index {}".format(num_of_rows, data.shape[0], index)
         seq_x = data.iloc[:self.__seq_len][price_cols].values
         seq_y = data.iloc[-self.__pred_len:][price_cols].values
         # convert to symbol returns.
-        seq_x[:][:4] = seq_x[:][:4] / seq_x[-1][3]
-        seq_y[:][:4] = seq_y[:][:4] / seq_x[-1][3]
+        close = seq_x[-1][3]
+        seq_x[:, :4] = seq_x[:, :4] / close
+        seq_y[:, :4] = seq_y[:, :4] / close
+        assert seq_x[-1][3] == 1.0, "Failed to convert symbols return!"
         # convert to sp500 returns.
-        seq_x[:][-4:] = seq_x[:][-4:] / seq_x[-1][-1]
-        seq_y[:][-4:] = seq_y[:][-4:] / seq_x[-1][-1]
+        close = seq_x[-1][-1]
+        seq_x[:, -4:] = seq_x[:, -4:] / close
+        seq_y[:, -4:] = seq_y[:, -4:] / close
+        assert seq_x[-1][-1] == 1.0, "Failed to convert SP500 return!"
         seq_x_mark = np.vstack(data.iloc[:self.__seq_len][date_enc_col].values)
         seq_y_mark = np.vstack(data.iloc[-self.__pred_len:][date_enc_col].values)
 
