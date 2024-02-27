@@ -194,17 +194,19 @@ def save_dataset(args, type):
     # )
     dataset = Dataset(
         flag=type, seq_len=args.seq_len, pred_len=args.pred_len, startdate=args.start_date)
-    res = []
     select_k = round(args.downsample * len(dataset))
+    x = np.zeros((select_k, args.seq_len, dataset[0][0].shape[1]), dtype=np.float32)
+    date_x = np.zeros((select_k, args.seq_len, dataset[0][1].shape[1]), dtype=np.float32)
+    y = np.zeros((select_k, args.pred_len, dataset[0][2].shape[1]), dtype=np.float32)
+    date_y = np.zeros((select_k, args.pred_len, dataset[0][3].shape[1]), dtype=np.float32)
     for i in trange(len(dataset), desc="Fetch {} samples: ".format(type)):
         if i < select_k:
-            res.append(dataset[i])
+            x[i], date_x[i], y[i], date_y[i] = dataset[i]
         else:
             m = random.randint(0, i)
             if m < select_k:
-                res[m] = dataset[i]
-    print("Collected {} samples in {} dataset.".format(len(res), type))
-    x, date_x, y, date_y = tuple(zip(*res))
+                x[m], date_x[m], y[m], date_y[m] = dataset[i]
+    print("Collected {} samples in {} dataset.".format(x.shape[0], type))
     data = dict(
         x = x,
         date_x = date_x,
