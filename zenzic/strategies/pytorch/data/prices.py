@@ -111,7 +111,11 @@ class Dataset(torch_data.Dataset):
         quotes.drop(['adj_close'], axis=1, inplace=True)
         quotes.rename(
             columns=dict(zip(quotes.columns, [symbol+':'+c for c in quotes.columns])), inplace=True)
-        # print('Retrieved {} quotes for {}'.format(len(quotes), symbol))
+        invalid = quotes[quotes.values < 1e-6]
+        if not invalid.empty:
+            print(f"Found invalid prices for '{symbol}':")
+            print(invalid)
+            assert(False)
         return quotes
 
     def __get_symbols(self, watchlist):
@@ -141,12 +145,12 @@ class Dataset(torch_data.Dataset):
         seq_y = data.iloc[-self.__pred_len:][price_cols].values
         # convert to symbol returns.
         close = seq_x[-1][3]
-        seq_x[:, :4] = seq_x[:, :4] / close
+        seq_x[:, :4] = close / seq_x[:, :4]
         seq_y[:, :4] = seq_y[:, :4] / close
         assert seq_x[-1][3] == 1.0, "Failed to convert symbols return!"
         # convert to sp500 returns.
         close = seq_x[-1][-1]
-        seq_x[:, -4:] = seq_x[:, -4:] / close
+        seq_x[:, -4:] = close / seq_x[:, -4:]
         seq_y[:, -4:] = seq_y[:, -4:] / close
         assert seq_x[-1][-1] == 1.0, "Failed to convert SP500 return!"
         seq_x_mark = np.vstack(data.iloc[:self.__seq_len][date_enc_col].values)
