@@ -50,7 +50,7 @@ class SyneTuneReporter(Callback):
 
     def on_validation_epoch_end(self, trainer, pl_module):
         self.maes.append(trainer.logged_metrics['val_mae'].item())
-        self.min_mae = max(self.maes)
+        self.min_mae = min(self.maes)
         self.losses.append(trainer.logged_metrics['val_loss'].item())
         self.min_loss = min(self.losses)
         losses = np.array(self.losses)
