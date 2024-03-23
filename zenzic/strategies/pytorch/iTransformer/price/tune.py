@@ -92,7 +92,7 @@ def main():
     )
     scheduler = HyperTune(
         config_space,
-        search_options=None,
+        search_options=dict(model="gp_independent", hypertune_distribution_num_samples=50),
         type="promotion",
         brackets=1,
         **method_kwargs,
