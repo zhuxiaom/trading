@@ -21,34 +21,30 @@ class FinViz:
         url = 'https://finviz.com/quote.ashx?t=' + symbol
         stock_info = {}
         try:
-            while True:
-                self.__chrome.get(url)
-                ticker = self.__chrome.find_element_by_class_name('quote-header_ticker-wrapper_ticker')
-                if ticker.text == symbol:
-                    break
+            self.__chrome.get(url)
+            ticker = self.__chrome.find_element_by_class_name('quote-header_ticker-wrapper_ticker')
+            if ticker.text == symbol:
+                row = self.__chrome.find_element_by_css_selector('h2[class^="quote-header_ticker-wrapper_company"] > a')
+                assert(row.text.strip()), "Can't find company name!"
+                stock_info["Company Name"] = row.text.strip()
 
-            row = self.__chrome.find_element_by_css_selector('h2[class^="quote-header_ticker-wrapper_company"] > a')
-            assert(row.text.strip()), "Can't find company name!"
-            stock_info["Company Name"] = row.text.strip()
-
-            rows = self.__chrome.find_elements_by_css_selector('div.quote-links > div:nth-child(1) > a.tab-link')
-            assert (len(rows) == 4), "Only got %s" % (len(rows))
-            stock_info["Sector"] = rows[0].text.strip()
-            stock_info["Industry"] = rows[1].text.strip()
-            stock_info["Country"] = rows[2].text.strip()
-            stock_info["Exchange"] = rows[3].text.strip()
-            
-            rows =  self.__chrome.find_elements_by_css_selector('table.snapshot-table2 .table-dark-row')
-            assert (len(rows) in (12, 13)), "Only got %s" % (len(rows))
-            for row in rows:
-                cols = row.find_elements_by_css_selector('td')
-                assert (len(cols) == 12), "Only got %s" % (len(cols))
-                idx = 0
-                for col in cols:
-                    idx += 1
-                    if idx % 2 == 0:
-                        stock_info[cols[idx - 2].text.strip()] = col.text.strip()
-            
+                rows = self.__chrome.find_elements_by_css_selector('div.quote-links > div:nth-child(1) > a.tab-link')
+                assert (len(rows) == 4), "Only got %s" % (len(rows))
+                stock_info["Sector"] = rows[0].text.strip()
+                stock_info["Industry"] = rows[1].text.strip()
+                stock_info["Country"] = rows[2].text.strip()
+                stock_info["Exchange"] = rows[3].text.strip()
+                
+                rows =  self.__chrome.find_elements_by_css_selector('table.snapshot-table2 .table-dark-row')
+                assert (len(rows) in (12, 13)), "Only got %s" % (len(rows))
+                for row in rows:
+                    cols = row.find_elements_by_css_selector('td')
+                    assert (len(cols) == 12), "Only got %s" % (len(cols))
+                    idx = 0
+                    for col in cols:
+                        idx += 1
+                        if idx % 2 == 0:
+                            stock_info[cols[idx - 2].text.strip()] = col.text.strip()
             return stock_info
         except TimeoutException:
             print("Retry symbol '%s'." % (symbol))
