@@ -25,7 +25,9 @@ __RNG_STATES_FILE__ = 'rng_states.chkp'
 class SyneTuneReporter(Callback):
     def __init__(self, trial_root: str) -> None:
         self.maes = []
+        self.cum_maes = []
         self.min_mae = float('inf')
+        self.min_cum_mae = float('inf')
         self.losses = []
         self.min_loss = float('inf')
         self.reporter = Reporter(add_time=True)
@@ -45,12 +47,15 @@ class SyneTuneReporter(Callback):
                             max_worker_time = max(max_worker_time, metrics[ST_WORKER_TIME])
                             self.losses.append(metrics['val_loss'])
                             self.maes.append(metrics['val_mae'])
+                            self.cum_maes.append(metrics['val_cum_mae'])
                             self.min_loss = min(self.min_loss, self.losses[-1])
                     self.reporter.start -= max_worker_time
 
     def on_validation_epoch_end(self, trainer, pl_module):
         self.maes.append(trainer.logged_metrics['val_mae'].item())
         self.min_mae = min(self.maes)
+        self.cum_maes.append(trainer.logged_metrics['val_cum_mae'].item())
+        self.min_cum_mae = min(self.cum_maes)
         self.losses.append(trainer.logged_metrics['val_loss'].item())
         self.min_loss = min(self.losses)
         losses = np.array(self.losses)
@@ -66,6 +71,7 @@ class SyneTuneReporter(Callback):
                       score=self.score,
                       val_loss=self.losses[-1],
                       val_mae=self.maes[-1],
+                      val_cum_mae=self.cum_maes[-1],
                       )
 
     def finish(self, trainer):
@@ -158,6 +164,7 @@ def main():
     )
     tb_logger.log_hyperparams(args, metrics={'min_loss': 0,
                                              'min_mae': 0,
+                                             'min_cum_mae': 0,
                                              'score': 0})
     lr_logger = LearningRateMonitor()  # log the learning rate
     st_reporter = SyneTuneReporter(
@@ -173,7 +180,7 @@ def main():
     stoch_weight_avg = StochasticWeightAveraging(swa_epoch_start=6, swa_lrs=0.01, device=None)
     early_stop_callback = EarlyStopping(
         monitor="val_loss",
-        min_delta=1e-6,
+        min_delta=1e-8,
         patience=args.early_stopping,
         verbose=False,
         mode="min")
@@ -190,6 +197,7 @@ def main():
         enable_checkpointing=not syne_tune_enabled,
         num_sanity_val_steps=0,
         enable_progress_bar=not syne_tune_enabled,
+        # detect_anomaly=True,
     )
     if not checkpoint_exists:
         trainer.fit(model, train_loader, val_loader)
@@ -202,6 +210,7 @@ def main():
         trainer.fit(model, train_loader, val_loader, ckpt_path=checkpoint_file)
     tb_logger.log_metrics(metrics={'min_loss': st_reporter.min_loss,
                                    'min_mae': st_reporter.min_mae,
+                                   'min_cum_mae': st_reporter.min_cum_mae,
                                    'score': st_reporter.score})
     if syne_tune_enabled:
         trainer.save_checkpoint(checkpoint_file)

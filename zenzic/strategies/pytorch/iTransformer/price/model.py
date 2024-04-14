@@ -2,14 +2,21 @@ import numpy as np
 import lightning.pytorch as pl
 import torch
 import torch.nn as nn
+
 # import torch.nn.functional as F
 from zenzic.thirdparty.TimeSeriesLibrary.models import iTransformer
 from madgrad import MADGRAD
 from torch.optim import Adam
-from torchmetrics.functional.regression import mean_absolute_error, mean_absolute_percentage_error, symmetric_mean_absolute_percentage_error, mean_squared_log_error
+from torchmetrics.functional.regression import (
+    mean_absolute_error,
+    # mean_absolute_percentage_error,
+    mean_squared_error,
+    # mean_squared_log_error,
+)
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from argparse import ArgumentParser
 from lightning.pytorch.utilities import grad_norm
+from zenzic.strategies.pytorch.common import act_funcs
 
 def normalize(x, y):
     x = torch.log(x)
@@ -20,15 +27,15 @@ def normalize(x, y):
 
     y = torch.log(y)
     y[:, 1:] = y[:, 1:] - y[:, 0:-1]
-    assert not torch.any(torch.isnan(x)), f"Found nan value in X when normalize:\n{x[torch.isnan(x)]}"
-    assert not torch.any(torch.isnan(y)), f"Found nan value in Y when normalize:\n{y[torch.isnan(y)]}"
+    # assert not torch.any(torch.isnan(x)), f"Found nan value in X when normalize:\n{x[torch.isnan(x)]}"
+    # assert not torch.any(torch.isnan(y)), f"Found nan value in Y when normalize:\n{y[torch.isnan(y)]}"
     return x, y
 
 def denormalize(y):
-    y = torch.cumsum(y, dim=1)
-    y = torch.exp(y)
-    assert not torch.any(torch.isnan(y)), f"Found nan value in Y when denormalize:\n{y[torch.isnan(y)]}"
-    return y
+    y_ret = torch.cumsum(y, dim=1)
+    y_ret = torch.exp(y_ret)
+    # assert not torch.any(torch.isnan(y)), f"Found nan value in Y when denormalize: {torch.min(y)}, {torch.max(y)}"
+    return y_ret
 
 
 # iTransformer to predict prices.
@@ -41,19 +48,46 @@ class iTransPrice(pl.LightningModule):
 
         # iTransformer as backbone.
         self.backbone = iTransformer.Model(configs)
-        self.output = nn.Linear(configs.c_in, 1)
+        self.output = nn.Sequential(
+            act_funcs.get(name=configs.activation),
+            nn.Flatten(),
+            nn.Dropout(p=self.configs.dropout),
+            nn.Linear(self.configs.c_in * self.configs.pred_len,  self.configs.pred_len),
+        )
 
         self.learning_rate = configs.learning_rate
         self.lr_patience = configs.lr_patience
+        self.register_buffer('loss_factor', torch.Tensor([100.0]))
 
     def __resize_data(self, x):
         x = x[:, -self.configs.seq_len:, -self.configs.c_in:]
         return x
+    
+    def __metrics(self, stage: str, y_hat, y):
+        # assert not torch.any(y_hat < -9e-8), f"Found invalid value! {torch.min(y_hat)}"
+        loss = mean_squared_error(y_hat, y) * self.loss_factor
+        # calculate other metrics.
+        # y_ret = torch.special.logit(y_hat / self.configs.loss_scale, eps=1e-8)
+        y_ret = y_hat
+        r = torch.exp(y)
+        r_pred = torch.exp(y_ret)
+        mae = mean_absolute_error(r_pred, r)
+        cum_r = denormalize(y)
+        cum_r_pred = denormalize(y_ret)
+        cum_mae = mean_absolute_error(cum_r_pred, cum_r)
+        self.log_dict({
+            f'{stage}_loss': loss,
+            f'{stage}_mae': mae,
+            f'{stage}_cum_mae': cum_mae,
+        }, on_epoch=True, on_step=False)
+        return loss
 
     def forward(self, x):
         # x_mark = torch.ones(x.shape[0], self.configs.seq_len).to(x.device)
         backbone_out = self.backbone(x, None, None, None)
-        return self.output(backbone_out).squeeze_()
+        # assert not torch.any(backbone_out < -9e-8), f"Found invalid value! {torch.min(backbone_out)}"
+        out = self.output(backbone_out)
+        return torch.squeeze(out)
     
     def training_step(self, batch, batch_idx):
         x, _, y, _ = batch
@@ -61,16 +95,7 @@ class iTransPrice(pl.LightningModule):
         y = y[:, :, 3]
         x, y = normalize(x, y)
         y_hat = self(x)
-        loss = mean_squared_log_error(y_hat, y)
-
-        y_hat = denormalize(y_hat)
-        y = denormalize(y)
-        mae = mean_absolute_error(y_hat, y)
-        mape = mean_absolute_percentage_error(y_hat, y)
-        self.log('train_loss', loss, on_step=False, on_epoch=True)
-        self.log('train_mae', mae, on_step=False, on_epoch=True)
-        self.log('train_mape', mape, on_step=False, on_epoch=True)
-        return loss
+        return self.__metrics('train', y_hat=y_hat, y=y)
     
     def validation_step(self, batch, batch_idx):
         x, _, y, _ = batch
@@ -78,18 +103,7 @@ class iTransPrice(pl.LightningModule):
         y = y[:, :, 3]
         x, y = normalize(x, y)
         y_hat = self(x)
-        # print(f'y_hat: {y_hat.shape}, y: {y.shape}')
-        loss = mean_squared_log_error(y_hat, y)
-
-        y_hat = denormalize(y_hat)
-        y = denormalize(y)
-        mae = mean_absolute_error(y_hat, y)
-        mape = mean_absolute_percentage_error(y_hat, y)
-        self.log_dict({
-            'val_loss': loss,
-            'val_mae': mae,
-            'val_mape': mape,
-        }, on_epoch=True, on_step=False)
+        self.__metrics('val', y_hat=y_hat, y=y)
 
     def test_step(self, batch, batch_idx):
         x, _, y, _ = batch
@@ -97,24 +111,14 @@ class iTransPrice(pl.LightningModule):
         y = y[:, :, 3]
         x, y = normalize(x, y)
         y_hat = self(x)
-        loss = mean_squared_log_error(y_hat, y)
-
-        y_hat = denormalize(y_hat)
-        y = denormalize(y)
-        mae = mean_absolute_error(y_hat, y)
-        mape = mean_absolute_percentage_error(y_hat, y)
-        self.log_dict({
-            'test_loss': loss,
-            'test_mae': mae,
-            'test_mape': mape,
-        }, on_epoch=True, on_step=False)
+        self.__metrics('test', y_hat=y_hat, y=y)
 
     def configure_optimizers(self):
         optimizer = MADGRAD(self.parameters(), self.learning_rate)
         # optimizer = Adam(self.parameters(), self.learning_rate)
         scheduler = ReduceLROnPlateau(
             optimizer, mode='min', patience=self.lr_patience,
-            cooldown=self.lr_patience / 2, factor=0.5)
+            cooldown=self.lr_patience / 2, factor=0.1)
         if self.lr_patience <= 0:
             return optimizer
         else:
@@ -148,9 +152,11 @@ class iTransPrice(pl.LightningModule):
         parser.add_argument('--d_ff', type=int, default=512, help='The feedforward dimension.')
         parser.add_argument('--activation', type=str, default='gelu', help='The activation function (gelu or relu).')
         parser.add_argument('--e_layers', type=int, default=3, help='The number of iTransformer layers.')
+        # Normalization setting: 0 - Logistic Norm, 1 - RevIN with affine false, 2 -RevIN with affine true
+        parser.add_argument('--norm_mode', type=int, default=0, help='Per-col normalization.')
 
         ### -------  optimizer settings --------------
-        parser.add_argument('--learning_rate', type=float,default=1e-4)
+        parser.add_argument('--learning_rate', type=float,default=1e-5)
         parser.add_argument('--lr_patience', type=int, default=5)
 
         return parser

@@ -8,6 +8,7 @@ import numpy as np
 
 # zxm begin
 from RevIN import RevIN
+from zenzic.strategies.pytorch.common.logistic_layer import LogisticLayer
 # zxm end
 
 class Model(nn.Module):
@@ -22,7 +23,15 @@ class Model(nn.Module):
         self.pred_len = configs.pred_len
         self.output_attention = configs.output_attention
         # zxm begin
-        self.rev_in = RevIN(configs.c_in)
+        self.c_in = configs.c_in
+        self.norm_mode = configs.norm_mode
+        if self.norm_mode == 0:
+            self.logistic = LogisticLayer(self.c_in)
+            self.norm = RevIN(configs.c_in, affine=False)
+        elif self.norm_mode == 1:
+            self.norm = RevIN(configs.c_in, affine=False)
+        elif self.norm_mode == 2:
+            self.norm = RevIN(configs.c_in, affine=True)
         # zxm end
         # Embedding
         self.enc_embedding = DataEmbedding_inverted(configs.seq_len, configs.d_model, configs.embed, configs.freq,
@@ -56,10 +65,16 @@ class Model(nn.Module):
 
     def forecast(self, x_enc, x_mark_enc, x_dec, x_mark_dec):
         # Normalization from Non-stationary Transformer
-        means = x_enc.mean(1, keepdim=True).detach()
-        x_enc = x_enc - means
-        stdev = torch.sqrt(torch.var(x_enc, dim=1, keepdim=True, unbiased=False) + 1e-5)
-        x_enc /= stdev
+        # zxm begin
+        # means = x_enc.mean(1, keepdim=True).detach()
+        # x_enc = x_enc - means
+        # stdev = torch.sqrt(torch.var(x_enc, dim=1, keepdim=True, unbiased=False) + 1e-5)
+        # x_enc /= stdev
+        if self.norm_mode == 1 or self.norm_mode == 2:
+            x_enc = self.norm(x_enc, 'norm')
+        else:
+            x_enc = self.norm(self.logistic(x_enc), 'norm')
+        # zxm end
 
         _, _, N = x_enc.shape
 
@@ -69,8 +84,14 @@ class Model(nn.Module):
 
         dec_out = self.projection(enc_out).permute(0, 2, 1)[:, :, :N]
         # De-Normalization from Non-stationary Transformer
-        dec_out = dec_out * (stdev[:, 0, :].unsqueeze(1).repeat(1, self.pred_len, 1))
-        dec_out = dec_out + (means[:, 0, :].unsqueeze(1).repeat(1, self.pred_len, 1))
+        # zxm begin
+        # dec_out = dec_out * (stdev[:, 0, :].unsqueeze(1).repeat(1, self.pred_len, 1))
+        # dec_out = dec_out + (means[:, 0, :].unsqueeze(1).repeat(1, self.pred_len, 1))
+        if self.norm_mode == 1 or self.norm_mode == 2:
+            x_enc = self.norm(x_enc, 'denorm')
+        else:
+            x_enc = self.logistic(self.norm(x_enc, 'denorm'), True)
+        # zxm end
         return dec_out
 
     def imputation(self, x_enc, x_mark_enc, x_dec, x_mark_dec, mask):
@@ -80,7 +101,10 @@ class Model(nn.Module):
         # x_enc = x_enc - means
         # stdev = torch.sqrt(torch.var(x_enc, dim=1, keepdim=True, unbiased=False) + 1e-5)
         # x_enc /= stdev
-        x_enc = self.rev_in(x_enc, 'norm')
+        if self.norm_mode == 1 or self.norm_mode == 2:
+            x_enc = self.norm(x_enc, 'norm')
+        else:
+            x_enc = self.norm(x_enc)
         # zxm end
 
         _, L, N = x_enc.shape
@@ -94,7 +118,8 @@ class Model(nn.Module):
         # zxm begin
         # dec_out = dec_out * (stdev[:, 0, :].unsqueeze(1).repeat(1, L, 1))
         # dec_out = dec_out + (means[:, 0, :].unsqueeze(1).repeat(1, L, 1))
-        dec_out = self.rev_in(dec_out, 'denorm')
+        if self.norm_mode == 1 or self.norm_mode == 2:
+            x_enc = self.norm(x_enc, 'denorm')
         return dec_out
 
     def anomaly_detection(self, x_enc):

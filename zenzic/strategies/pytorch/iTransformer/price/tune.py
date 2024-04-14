@@ -3,7 +3,7 @@ from zenzic.strategies.pytorch.iTransformer.price.model import iTransPrice
 from syne_tune.optimizer.baselines import HyperTune
 from syne_tune.backend import LocalBackend
 from syne_tune import Tuner, StoppingCriterion
-from syne_tune.config_space import randint, uniform, finrange
+from syne_tune.config_space import randint, finrange, choice
 from syne_tune.tuner_callback import TunerCallback
 from syne_tune.util import RegularCallback
 from syne_tune.backend.trial_status import Status
@@ -73,13 +73,14 @@ def main():
         'max_epochs': args.max_epochs,
         'input_dir': args.input_dir,
         'output_dir': args.output_dir,
-        # 'lr_patience': 0,
         'seq_len': finrange(lower=32, upper=384, size=12, cast_int=True), # range(32, 385, 32)
         'd_model': finrange(lower=16, upper=384, size=47, cast_int=True), # range(16, 385, 8)
         'n_heads': finrange(lower=2, upper=16, size=7, cast_int=True), # range(2, 16, 2)
         'd_ff': finrange(lower=32, upper=2048, size=64, cast_int=True), # range(32, 2049, 32)
         'e_layers': randint(1, 6),
-        'dropout': uniform(lower=0.0, upper=0.99),
+        'norm_mode': choice([0, 1]),
+        'activation': choice(['tanh', 'gelu', 'elu']),
+        'dropout': finrange(lower=0.1, upper=0.9, size=41), # range(10, 91, 2)
     }
     
     method_kwargs = dict(
