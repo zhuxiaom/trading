@@ -23,4 +23,8 @@ class LogisticLayer(nn.Module):
         if not invert:
             return self.A / (self.const_one + torch.exp(-self.k * (x - self.x0))) + self.bias
         else:
-            return (torch.log(self.A / (x - self.bias) - self.const_one) / -self.k) + self.x0
+            A = self.A.detach()
+            bias = self.bias.detach()
+            k = self.k.detach()
+            x0 = self.x0.detach()
+            return (torch.log(A / (x - bias) - self.const_one) / -k) + x0

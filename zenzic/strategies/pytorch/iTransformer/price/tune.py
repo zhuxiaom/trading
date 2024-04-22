@@ -77,10 +77,10 @@ def main():
         'd_model': finrange(lower=16, upper=384, size=47, cast_int=True), # range(16, 385, 8)
         'n_heads': finrange(lower=2, upper=16, size=7, cast_int=True), # range(2, 16, 2)
         'd_ff': finrange(lower=32, upper=2048, size=64, cast_int=True), # range(32, 2049, 32)
-        'e_layers': randint(1, 6),
+        'e_layers': randint(4, 12),
         'norm_mode': choice([0, 1]),
         'activation': choice(['tanh', 'gelu', 'elu']),
-        'dropout': finrange(lower=0.1, upper=0.9, size=41), # range(10, 91, 2)
+        'dropout': finrange(lower=0.3, upper=0.9, size=31), # range(30, 91, 2)
     }
     
     method_kwargs = dict(

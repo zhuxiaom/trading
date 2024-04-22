@@ -48,12 +48,7 @@ class iTransPrice(pl.LightningModule):
 
         # iTransformer as backbone.
         self.backbone = iTransformer.Model(configs)
-        self.output = nn.Sequential(
-            act_funcs.get(name=configs.activation),
-            nn.Flatten(),
-            nn.Dropout(p=self.configs.dropout),
-            nn.Linear(self.configs.c_in * self.configs.pred_len,  self.configs.pred_len),
-        )
+        self.output = nn.Linear(in_features=self.configs.c_in, out_features=1)
 
         self.learning_rate = configs.learning_rate
         self.lr_patience = configs.lr_patience
@@ -156,7 +151,7 @@ class iTransPrice(pl.LightningModule):
         parser.add_argument('--norm_mode', type=int, default=0, help='Per-col normalization.')
 
         ### -------  optimizer settings --------------
-        parser.add_argument('--learning_rate', type=float,default=1e-5)
+        parser.add_argument('--learning_rate', type=float,default=1e-4)
         parser.add_argument('--lr_patience', type=int, default=5)
 
         return parser
