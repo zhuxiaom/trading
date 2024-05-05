@@ -8,7 +8,6 @@ import numpy as np
 
 # zxm begin
 from RevIN import RevIN
-from zenzic.strategies.pytorch.common.logistic_layer import LogisticLayer
 # zxm end
 
 class Model(nn.Module):
@@ -26,12 +25,11 @@ class Model(nn.Module):
         self.c_in = configs.c_in
         self.norm_mode = configs.norm_mode
         if self.norm_mode == 0:
-            self.logistic = LogisticLayer(self.c_in)
-            self.norm = RevIN(configs.c_in, affine=False)
+            self.norm = None
         elif self.norm_mode == 1:
-            self.norm = RevIN(configs.c_in, affine=False)
+            self.norm = RevIN(configs.c_in, eps=1e-10, affine=False)
         elif self.norm_mode == 2:
-            self.norm = RevIN(configs.c_in, affine=True)
+            self.norm = RevIN(configs.c_in, eps=1e-10, affine=True)
         # zxm end
         # Embedding
         self.enc_embedding = DataEmbedding_inverted(configs.seq_len, configs.d_model, configs.embed, configs.freq,
@@ -72,8 +70,6 @@ class Model(nn.Module):
         # x_enc /= stdev
         if self.norm_mode == 1 or self.norm_mode == 2:
             x_enc = self.norm(x_enc, 'norm')
-        else:
-            x_enc = self.norm(self.logistic(x_enc), 'norm')
         # zxm end
 
         _, _, N = x_enc.shape
@@ -89,8 +85,6 @@ class Model(nn.Module):
         # dec_out = dec_out + (means[:, 0, :].unsqueeze(1).repeat(1, self.pred_len, 1))
         if self.norm_mode == 1 or self.norm_mode == 2:
             x_enc = self.norm(x_enc, 'denorm')
-        else:
-            x_enc = self.logistic(self.norm(x_enc, 'denorm'), True)
         # zxm end
         return dec_out
 

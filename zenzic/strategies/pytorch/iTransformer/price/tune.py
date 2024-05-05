@@ -74,11 +74,16 @@ def main():
         'input_dir': args.input_dir,
         'output_dir': args.output_dir,
         'seq_len': finrange(lower=32, upper=384, size=12, cast_int=True), # range(32, 385, 32)
+        # 'seq_len': 384,
         'd_model': finrange(lower=16, upper=384, size=47, cast_int=True), # range(16, 385, 8)
-        'n_heads': finrange(lower=2, upper=16, size=7, cast_int=True), # range(2, 16, 2)
+        # 'd_model': 384,
+        'n_heads': finrange(lower=2, upper=16, size=8, cast_int=True), # range(2, 17, 2)
+        # 'n_heads': 16,
         'd_ff': finrange(lower=32, upper=2048, size=64, cast_int=True), # range(32, 2049, 32)
-        'e_layers': randint(4, 12),
-        'norm_mode': choice([0, 1]),
+        # 'd_ff': 2048,
+        'e_layers': finrange(lower=2, upper=12, size=6, cast_int=True),
+        # 'e_layers': 12,
+        'norm_mode': 1,
         'activation': choice(['tanh', 'gelu', 'elu']),
         'dropout': finrange(lower=0.3, upper=0.9, size=31), # range(30, 91, 2)
     }

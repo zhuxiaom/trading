@@ -2,6 +2,7 @@ import numpy as np
 import lightning.pytorch as pl
 import torch
 import torch.nn as nn
+import copy
 
 # import torch.nn.functional as F
 from zenzic.thirdparty.TimeSeriesLibrary.models import iTransformer
@@ -17,6 +18,8 @@ from torch.optim.lr_scheduler import ReduceLROnPlateau
 from argparse import ArgumentParser
 from lightning.pytorch.utilities import grad_norm
 from zenzic.strategies.pytorch.common import act_funcs
+from zenzic.strategies.pytorch.common.logistic_layer import LogisticLayer
+from zenzic.strategies.pytorch.common.range_layer import Range1DLayer
 
 def normalize(x, y):
     x = torch.log(x)
@@ -46,9 +49,17 @@ class iTransPrice(pl.LightningModule):
 
         self.configs = configs
 
+        self.logistic = LogisticLayer(self.configs.c_in)
+        self.range_win_sizes = [3, 5, 10, 20]
+        self.range_layers = nn.ModuleList([Range1DLayer(win_size) for win_size in self.range_win_sizes])
+        
+        # Revise c_in because we add range channels.
+        cfgs = copy.deepcopy(self.configs)
+        cfgs.c_in = 4 * len(self.range_win_sizes) + self.configs.c_in
+
         # iTransformer as backbone.
-        self.backbone = iTransformer.Model(configs)
-        self.output = nn.Linear(in_features=self.configs.c_in, out_features=1)
+        self.backbone = iTransformer.Model(cfgs)
+        self.output = nn.Linear(in_features=cfgs.c_in, out_features=1)
 
         self.learning_rate = configs.learning_rate
         self.lr_patience = configs.lr_patience
@@ -78,7 +89,13 @@ class iTransPrice(pl.LightningModule):
         return loss
 
     def forward(self, x):
-        # x_mark = torch.ones(x.shape[0], self.configs.seq_len).to(x.device)
+        x = self.logistic(x)
+        ranges = [x]
+        for range in self.range_layers:
+            # Close price of stock and SP500.
+            y = range(x[:, :, (3, 7)])
+            ranges.append(y)
+        x = torch.cat(ranges, dim=2)
         backbone_out = self.backbone(x, None, None, None)
         # assert not torch.any(backbone_out < -9e-8), f"Found invalid value! {torch.min(backbone_out)}"
         out = self.output(backbone_out)
@@ -151,7 +168,7 @@ class iTransPrice(pl.LightningModule):
         parser.add_argument('--norm_mode', type=int, default=0, help='Per-col normalization.')
 
         ### -------  optimizer settings --------------
-        parser.add_argument('--learning_rate', type=float,default=1e-4)
+        parser.add_argument('--learning_rate', type=float,default=3e-5)
         parser.add_argument('--lr_patience', type=int, default=5)
 
         return parser
