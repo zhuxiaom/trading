@@ -26,7 +26,10 @@ class PatchTST_backbone(nn.Module):
         
         # RevIn
         self.revin = revin
-        if self.revin: self.revin_layer = RevIN(c_in, affine=affine, subtract_last=subtract_last)
+        #  zxm change begin
+        # if self.revin: self.revin_layer = RevIN(c_in, affine=affine, subtract_last=subtract_last)
+        if self.revin: self.revin_layer = RevIN(c_in, affine=affine, subtract_last=subtract_last, eps=1e-10)
+        # zxm change end
         
         # Patching
         self.patch_len = patch_len
