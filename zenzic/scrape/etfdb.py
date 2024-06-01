@@ -7,6 +7,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import NoSuchElementException
 from selenium.common.exceptions import TimeoutException
+from selenium.webdriver.common.by import By
 from zenzic.data.stockdb import StockDB
 from zenzic.scrape.chromeext import uBlockOrigin
 from pathlib import Path
@@ -27,10 +28,10 @@ class EtfDb:
             url = 'https://www.etfdb.com/alpha/' + chr(ch) + '/'
             self.__chrome.get(url)
             while True:
-                rows = self.__chrome.find_elements_by_xpath('//*[@id="etfs"]/tbody/tr')
+                rows = self.__chrome.find_elements(By.XPATH, '//*[@id="etfs"]/tbody/tr')
                 print('Found %d ETFs in the page.' % (len(rows)))
                 for row in rows:
-                    elmts = row.find_elements_by_xpath('./*')
+                    elmts = row.find_elements(By.XPATH, './*')
                     # print(':'.join([x.text for x in elmts]))
                     self.__sym_info[elmts[0].text.strip()] = {
                         'name': elmts[1].text.strip(),
@@ -38,11 +39,11 @@ class EtfDb:
                     }
 
                 try:
-                    self.__chrome.find_element_by_css_selector('.page-next.disabled')
+                    self.__chrome.find_element(By.CSS_SELECTOR, '.page-next.disabled')
                     break
                 except NoSuchElementException:
                     while True:
-                        next_btn = self.__chrome.find_element_by_css_selector('.page-next a:first-child')
+                        next_btn = self.__chrome.find_element(By.CSS_SELECTOR, '.page-next a:first-child')
                         ActionChains(self.__chrome).move_to_element(next_btn).click().perform()
                         try:
                             for row in rows:
