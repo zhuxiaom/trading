@@ -35,7 +35,7 @@ class Model(nn.Module):
         x = self.model(x)
         return x
 class Backbone(nn.Module):
-    def __init__(self, configs,revin = True, affine = True, subtract_last = False):
+    def __init__(self, configs,revin = False, affine = True, subtract_last = False):
         super().__init__()
 
         self.nvals = configs.enc_in
