@@ -11,6 +11,7 @@ import numpy as np
 #from collections import OrderedDict
 from layers.PatchTST_layers import *
 from layers.RevIN import RevIN
+from zenzic.strategies.pytorch.common.logistic_layer import LazyLogisticLayer
 
 # Cell
 class PatchTST_backbone(nn.Module):
@@ -337,6 +338,9 @@ class _ScaledDotProductAttention(nn.Module):
         head_dim = d_model // n_heads
         self.scale = nn.Parameter(torch.tensor(head_dim ** -0.5), requires_grad=lsa)
         self.lsa = lsa
+        # zxm begin
+        self.logistic_layer = LazyLogisticLayer()
+        # zxm end
 
     def forward(self, q:Tensor, k:Tensor, v:Tensor, prev:Optional[Tensor]=None, key_padding_mask:Optional[Tensor]=None, attn_mask:Optional[Tensor]=None):
         '''
@@ -371,7 +375,10 @@ class _ScaledDotProductAttention(nn.Module):
             attn_scores.masked_fill_(key_padding_mask.unsqueeze(1).unsqueeze(2), -np.inf)
 
         # normalize the attention weights
-        attn_weights = F.softmax(attn_scores, dim=-1)                 # attn_weights   : [bs x n_heads x max_q_len x q_len]
+        # zxm begin
+        # attn_weights = F.softmax(attn_scores, dim=-1)                 # attn_weights   : [bs x n_heads x max_q_len x q_len]
+        attn_weights = self.logistic_layer(attn_scores)
+        # zxm end
         attn_weights = self.attn_dropout(attn_weights)
 
         # compute the new values given the attention weights

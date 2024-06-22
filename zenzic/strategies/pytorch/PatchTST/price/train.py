@@ -108,7 +108,7 @@ def main():
     # args
     # ------------
     parser = ArgumentParser()
-    parser.add_argument('--batch_size', default=64, type=int)
+    parser.add_argument('--batch_size', default=32, type=int)
     parser.add_argument('--input_dir', type=str, required=True)
     parser.add_argument('--output_dir', type=str, required=True)
     parser.add_argument('--in_channels', type=tuple, default=(0, 1, 2, 3))
